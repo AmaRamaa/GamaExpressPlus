@@ -3,7 +3,6 @@ import { Inter, Barlow_Condensed, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import GarageBar from "@/components/GarageBar";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -20,7 +19,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} ${barlow.variable} ${plexMono.variable}`}>
       <body className="flex min-h-screen flex-col font-sans">
         <Header />
-        <GarageBar />
         <main className="flex-1">{children}</main>
         <Footer />
         <WhatsAppButton />

@@ -2,9 +2,10 @@
 
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal, Car } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
-import { brands, categories, products, getEngineIdsForGeneration } from "@/lib/mock-data";
+import VehicleFinder from "@/components/VehicleFinder";
+import { categories, products, getEngineIdsForGeneration } from "@/lib/mock-data";
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
@@ -14,7 +15,7 @@ function ProductsPageContent() {
   const generationId = searchParams.get("generationId") || "";
 
   const [selectedCategory, setSelectedCategory] = useState(categorySlug);
-  const [selectedBrand, setSelectedBrand] = useState(brandSlug);
+  const selectedBrand = brandSlug;
   const [sort, setSort] = useState("relevance");
   const [maxPrice, setMaxPrice] = useState(200);
 
@@ -79,26 +80,12 @@ function ProductsPageContent() {
             </ul>
           </div>
 
-          {/* <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
-            <p className="mb-3 text-sm font-semibold text-ink">Brand</p>
-            <ul className="space-y-1.5 text-sm">
-              <li>
-                <button onClick={() => setSelectedBrand("")} className={`text-left ${!selectedBrand ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}>
-                  All brands
-                </button>
-              </li>
-              {brands.map((b) => (
-                <li key={b.id}>
-                  <button
-                    onClick={() => setSelectedBrand(b.slug)}
-                    className={`text-left ${selectedBrand === b.slug ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}
-                  >
-                    {b.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div> */}
+          <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
+            <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
+              <Car size={14} /> Your vehicle
+            </p>
+            <VehicleFinder variant="inline" />
+          </div>
 
           <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
             <p className="mb-3 text-sm font-semibold text-ink">Max price: €{maxPrice}</p>
