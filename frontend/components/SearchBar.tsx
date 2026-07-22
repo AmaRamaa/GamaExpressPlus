@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Clock, TrendingUp } from "lucide-react";
-import { products, popularSearches } from "@/lib/mock-data";
+import { popularSearches, searchProducts } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
 import { PartCode, SignInForPrice } from "./ui-bits";
@@ -19,15 +19,7 @@ export default function SearchBar() {
 
   const suggestions = useMemo(() => {
     if (query.trim().length < 2) return [];
-    const q = query.toLowerCase();
-    return products
-      .filter(
-        (p) =>
-          p.title.toLowerCase().includes(q) ||
-          p.partNumber.toLowerCase().includes(q) ||
-          p.oemNumbers.some((o) => o.toLowerCase().includes(q))
-      )
-      .slice(0, 5);
+    return searchProducts(query).slice(0, 5);
   }, [query]);
 
   function submitSearch(term: string) {

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, Car } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import VehicleFinder from "@/components/VehicleFinder";
-import { categories, products, getEngineIdsForGeneration } from "@/lib/mock-data";
+import { categories, products, searchProducts, getEngineIdsForGeneration } from "@/lib/mock-data";
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
@@ -20,16 +20,7 @@ function ProductsPageContent() {
   const [maxPrice, setMaxPrice] = useState(200);
 
   const filtered = useMemo(() => {
-    let list = [...products];
-    if (q) {
-      const term = q.toLowerCase();
-      list = list.filter(
-        (p) =>
-          p.title.toLowerCase().includes(term) ||
-          p.partNumber.toLowerCase().includes(term) ||
-          p.oemNumbers.some((o) => o.toLowerCase().includes(term))
-      );
-    }
+    let list = q ? searchProducts(q) : [...products];
     if (generationId) {
       const engineIds = getEngineIdsForGeneration(generationId);
       list = list.filter((p) => p.compatibleEngineIds.some((id) => engineIds.includes(id)));

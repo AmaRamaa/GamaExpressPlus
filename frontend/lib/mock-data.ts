@@ -301,6 +301,22 @@ export function getFeaturedProducts() {
   return products.filter((p) => p.isFeatured);
 }
 
+// Free-text search across title, brand, category, part number, and OEM
+// numbers — not just an exact part-name/OEM match. Splits the query into
+// words so compound queries like "TYC headlight" or "VW Golf bumper" work,
+// requiring every word to appear somewhere in the product's searchable text.
+export function searchProducts(query: string): Product[] {
+  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (terms.length === 0) return [];
+
+  return products.filter((p) => {
+    const haystack = [p.title, p.brand.name, p.categoryName, p.partNumber, ...p.oemNumbers]
+      .join(" ")
+      .toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
 export function getEngineIdsForGeneration(generationId: string): string[] {
   for (const make of vehicleMakes) {
     for (const model of make.models) {
