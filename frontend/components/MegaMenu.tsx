@@ -5,9 +5,11 @@ import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { megaMenu } from "@/lib/mock-data";
 import { resolveIcon } from "@/lib/icon-map";
+import { useT } from "@/lib/i18n";
 
 export default function MegaMenu() {
   const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const { t } = useT();
 
   return (
     <nav className="hidden border-t border-surface-border bg-surface lg:block">
@@ -60,10 +62,10 @@ export default function MegaMenu() {
         })}
 
         <Link href="/products?sort=newest" className="ml-auto px-3.5 py-3 text-sm font-medium text-ink-soft hover:text-brand-red">
-          New Arrivals
+          {t.header.newArrivals}
         </Link>
         <Link href="/products?sale=1" className="rounded-md bg-brand-red px-3.5 py-1.5 text-sm font-semibold text-white hover:bg-brand-red-dark">
-          Sale
+          {t.header.sale}
         </Link>
       </div>
     </nav>

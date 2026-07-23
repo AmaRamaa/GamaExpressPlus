@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { CircleGauge, ChevronDown } from "lucide-react";
 import { vehicleMakes } from "@/lib/mock-data";
 import { useStore } from "@/lib/store";
-import type { VehicleGeneration, VehicleMake } from "@/lib/types";
+import { useT } from "@/lib/i18n";
+import type { VehicleMake } from "@/lib/types";
 
 function MakeBadge({ make, size = 20 }: { make: VehicleMake; size?: number }) {
   if (make.logoUrl) {
@@ -25,10 +26,10 @@ function MakeBadge({ make, size = 20 }: { make: VehicleMake; size?: number }) {
 export default function VehicleFinder({ variant: variantProp = "card" }: { variant?: "card" | "inline" }) {
   const router = useRouter();
   const setVehicle = useStore((s) => s.setVehicle);
+  const { t } = useT();
 
   const [makeId, setMakeId] = useState("");
   const [modelId, setModelId] = useState("");
-  const [pickerValue, setPickerValue] = useState("");
   const [yearInput, setYearInput] = useState("");
   const [makeMenuOpen, setMakeMenuOpen] = useState(false);
   const makeMenuRef = useRef<HTMLDivElement>(null);
@@ -48,43 +49,13 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
 
   function selectMake(id: string) {
     setMakeId(id);
-    setModelId(""); setPickerValue(""); setYearInput("");
+    setModelId(""); setYearInput("");
     setMakeMenuOpen(false);
   }
 
-  const distinctBodyTypes = useMemo(() => {
-    if (!model) return [];
-    return Array.from(new Set(model.generations.map((g) => g.bodyType).filter((b): b is string => !!b)));
-  }, [model]);
-
-  // A picker only helps if it actually disambiguates something. If the model
-  // comes in more than one body style (e.g. A3 Sportsback vs Sedan), let the
-  // user pick that. Otherwise, if the model simply has multiple generations
-  // (e.g. Golf Mk6 vs Mk7 — both hatchbacks), let them pick the generation
-  // directly, since year ranges between generations can overlap.
-  const pickerMode: "bodyStyle" | "generation" | "none" = useMemo(() => {
-    if (!model) return "none";
-    if (distinctBodyTypes.length > 1) return "bodyStyle";
-    if (model.generations.length > 1) return "generation";
-    return "none";
-  }, [model, distinctBodyTypes]);
-
-  const pickerLabel = pickerMode === "bodyStyle" ? "Variant" : "Series";
-
-  const candidateGenerations: VehicleGeneration[] = useMemo(() => {
-    if (!model) return [];
-    if (pickerMode === "bodyStyle") {
-      return pickerValue ? model.generations.filter((g) => g.bodyType === pickerValue) : model.generations;
-    }
-    if (pickerMode === "generation") {
-      return pickerValue ? model.generations.filter((g) => g.id === pickerValue) : model.generations;
-    }
-    return model.generations;
-  }, [model, pickerMode, pickerValue]);
-
-  const sortedCandidates = useMemo(
-    () => [...candidateGenerations].sort((a, b) => a.yearFrom - b.yearFrom),
-    [candidateGenerations]
+  const sortedGenerations = useMemo(
+    () => (model ? [...model.generations].sort((a, b) => a.yearFrom - b.yearFrom) : []),
+    [model]
   );
 
   const year = yearInput.trim() ? Number(yearInput) : null;
@@ -92,23 +63,23 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
 
   const yearMatches = useMemo(() => {
     if (!validYear || year === null) return [];
-    return sortedCandidates.filter((g) => year >= g.yearFrom && year <= (g.yearTo ?? new Date().getFullYear() + 1));
-  }, [sortedCandidates, validYear, year]);
+    return sortedGenerations.filter((g) => year >= g.yearFrom && year <= (g.yearTo ?? new Date().getFullYear() + 1));
+  }, [sortedGenerations, validYear, year]);
 
-  const matchedGeneration = yearMatches.length === 1 ? yearMatches[0] : null;
+  // Multiple generations can share a year (e.g. an outgoing and incoming
+  // model overlapping); rather than force the user through an extra
+  // disambiguation step, just take the earliest match.
+  const matchedGeneration = yearMatches[0] ?? null;
 
   const yearRangeHint = useMemo(() => {
-    if (sortedCandidates.length === 0) return null;
-    return sortedCandidates.map((g) => `${g.yearFrom}–${g.yearTo ?? "present"}`).join(", ");
-  }, [sortedCandidates]);
+    if (sortedGenerations.length === 0) return null;
+    return sortedGenerations.map((g) => `${g.yearFrom}–${g.yearTo ?? "present"}`).join(", ");
+  }, [sortedGenerations]);
 
   const yearError = (() => {
     if (!model || !validYear) return null;
     if (yearMatches.length === 0) {
-      return `That year isn't covered for this ${pickerValue || "model"}. Produced: ${yearRangeHint}.`;
-    }
-    if (yearMatches.length > 1) {
-      return `Multiple ${model.name} generations match ${year} — select the ${pickerLabel.toLowerCase()} above to narrow it down.`;
+      return `${t.vehicleFinder.yearNotCovered}: ${yearRangeHint}.`;
     }
     return null;
   })();
@@ -135,7 +106,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
       {variantProp === "card" && (
         <div className="mb-4 flex items-center gap-2">
           <CircleGauge size={18} className="text-brand-red" />
-          <h3 className="font-display text-lg font-semibold text-ink">Find parts for your vehicle</h3>
+          <h3 className="font-display text-lg font-semibold text-ink">{t.vehicleFinder.title}</h3>
         </div>
       )}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
@@ -147,7 +118,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
           >
             <span className="flex min-w-0 items-center gap-2">
               {make && <MakeBadge make={make} size={18} />}
-              <span className={`truncate ${make ? "text-ink" : "text-ink-soft"}`}>{make ? make.name : "Manufacturer"}</span>
+              <span className={`truncate ${make ? "text-ink" : "text-ink-soft"}`}>{make ? make.name : t.vehicleFinder.manufacturer}</span>
             </span>
             <ChevronDown size={14} className={`shrink-0 text-ink-soft transition-transform ${makeMenuOpen ? "rotate-180" : ""}`} />
           </button>
@@ -181,33 +152,19 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
           disabled={!makeId}
           onChange={(e) => {
             setModelId(e.target.value);
-            setPickerValue(""); setYearInput("");
+            setYearInput("");
           }}
         >
-          <option value="">Model</option>
+          <option value="">{t.vehicleFinder.model}</option>
           {make?.models.map((m) => (
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </select>
 
-        {pickerMode !== "none" && (
-          <select
-            className={selectClass}
-            value={pickerValue}
-            disabled={!modelId}
-            onChange={(e) => setPickerValue(e.target.value)}
-          >
-            <option value="">{pickerLabel}</option>
-            {pickerMode === "bodyStyle"
-              ? distinctBodyTypes.map((b) => <option key={b} value={b}>{b}</option>)
-              : model?.generations.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
-          </select>
-        )}
-
         <input
           type="number"
           inputMode="numeric"
-          placeholder="Car year"
+          placeholder={t.vehicleFinder.carYear}
           className={selectClass}
           value={yearInput}
           disabled={!modelId}
@@ -217,9 +174,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
 
       {yearError && <p className="mt-2 text-xs text-brand-red">{yearError}</p>}
       {!yearError && yearRangeHint && !yearInput && (
-        <p className="mt-2 text-xs text-ink-soft">
-          {pickerMode !== "none" && !pickerValue && `${pickerLabel} is optional. `}Produced: {yearRangeHint}
-        </p>
+        <p className="mt-2 text-xs text-ink-soft">{t.vehicleFinder.produced}: {yearRangeHint}</p>
       )}
 
       <button
@@ -227,7 +182,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
         disabled={!canSearch}
         className="mt-4 w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:bg-surface-border disabled:text-ink-soft"
       >
-        Show compatible parts
+        {t.vehicleFinder.showParts}
       </button>
     </div>
   );

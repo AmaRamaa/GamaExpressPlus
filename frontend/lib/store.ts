@@ -4,12 +4,14 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuthUser, CartLine, Product, SelectedVehicle } from "./types";
 import { demoAccounts } from "./mock-data";
+import type { Locale } from "./i18n";
 
 interface StoreState {
   cart: CartLine[];
   wishlist: string[];
   vehicle: SelectedVehicle | null;
   user: AuthUser | null;
+  locale: Locale;
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
@@ -18,6 +20,7 @@ interface StoreState {
   clearCart: () => void;
   login: (email: string, password: string) => boolean;
   logout: () => void;
+  setLocale: (locale: Locale) => void;
 }
 
 export const useStore = create<StoreState>()(
@@ -27,6 +30,7 @@ export const useStore = create<StoreState>()(
       wishlist: [],
       vehicle: null,
       user: null,
+      locale: "sq",
 
       addToCart: (product, quantity = 1) => {
         const existing = get().cart.find((l) => l.product.id === product.id);
@@ -77,6 +81,8 @@ export const useStore = create<StoreState>()(
       },
 
       logout: () => set({ user: null }),
+
+      setLocale: (locale) => set({ locale }),
     }),
     { name: "gama-express-store" }
   )

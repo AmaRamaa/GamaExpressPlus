@@ -1,100 +1,155 @@
-import { AlertTriangle, DollarSign, Package, ShoppingBag, Star, Users } from "lucide-react";
-import { products } from "@/lib/mock-data";
+"use client";
 
-const stats = [
-  { label: "Revenue (30d)", value: "€24,318", icon: DollarSign },
-  { label: "Orders (30d)", value: "312", icon: ShoppingBag },
-  { label: "Active products", value: "8,412", icon: Package },
-  { label: "Registered users", value: "2,904", icon: Users },
-];
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  DollarSign,
+  ShoppingBag,
+  Users,
+  Package,
+  AlertTriangle,
+  Tags,
+  FolderTree,
+  Upload,
+} from "lucide-react";
+import { api, ApiError } from "@/lib/api";
+import { useAdminStore } from "@/lib/admin-store";
 
-const recentOrders = [
-  { id: "GE-2026-000312", customer: "Arben Krasniqi", total: 78.4, status: "Processing" },
-  { id: "GE-2026-000311", customer: "Auto Servis Dardania", total: 640.0, status: "Paid" },
-  { id: "GE-2026-000310", customer: "Fatmire Gashi", total: 42.5, status: "Shipped" },
+interface Summary {
+  totalOrders: number;
+  totalRevenueEur: number;
+  totalUsers: number;
+  totalProducts: number;
+  lowStockCount: number;
+  pendingReviews: number;
+  openQuotes: number;
+}
+
+interface LowStockProduct {
+  id: string;
+  title: string;
+  sku: string;
+  stockQuantity: number;
+  stockStatus: string;
+}
+
+const QUICK_LINKS = [
+  { href: "/admin/products/new", label: "Add Product", code: "AP", color: "bg-blue-600" },
+  { href: "/admin/products", label: "Products", code: "PR", color: "bg-emerald-600", icon: Package },
+  { href: "/admin/brands", label: "Brands", code: "BR", color: "bg-amber-600", icon: Tags },
+  { href: "/admin/categories", label: "Categories", code: "CA", color: "bg-violet-600", icon: FolderTree },
+  { href: "/admin/import", label: "Import", code: "IM", color: "bg-rose-600", icon: Upload },
+  { href: "/admin/orders", label: "Orders", code: "OR", color: "bg-cyan-600", icon: ShoppingBag },
 ];
 
 export default function AdminDashboardPage() {
-  const lowStock = products.filter((p) => p.stockStatus === "LOW_STOCK" || p.stockStatus === "OUT_OF_STOCK");
+  const token = useAdminStore((s) => s.token);
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [lowStock, setLowStock] = useState<LowStockProduct[]>([]);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!token) return;
+    api
+      .get<Summary>("/admin/analytics/summary", token)
+      .then(setSummary)
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load"));
+    api
+      .get<LowStockProduct[]>("/admin/inventory/low-stock", token)
+      .then((items) => setLowStock(items.slice(0, 8)))
+      .catch(() => {});
+  }, [token]);
+
+  const stats = summary
+    ? [
+        { label: "Revenue (paid)", value: `€${summary.totalRevenueEur.toFixed(2)}`, icon: DollarSign, color: "text-emerald-600 bg-emerald-50" },
+        { label: "Orders", value: summary.totalOrders, icon: ShoppingBag, color: "text-blue-600 bg-blue-50" },
+        { label: "Active products", value: summary.totalProducts, icon: Package, color: "text-violet-600 bg-violet-50" },
+        { label: "Registered users", value: summary.totalUsers, icon: Users, color: "text-amber-600 bg-amber-50" },
+      ]
+    : [];
 
   return (
-    <div className="container-page py-8">
-      <h1 className="mb-1 font-display text-2xl font-bold text-ink">Admin dashboard</h1>
-      <p className="mb-6 text-sm text-ink-soft">Overview of store performance and operations</p>
+    <div className="space-y-6">
+      <div>
+        <h1 className="font-display text-2xl font-bold text-ink">Dashboard</h1>
+        <p className="text-sm text-ink-soft">Overview of store performance and operations</p>
+      </div>
 
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+
+      {/* Quick launcher grid — Pro-Data style */}
+      <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Quick actions</p>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+          {QUICK_LINKS.map((q) => (
+            <Link key={q.href} href={q.href} className="flex flex-col items-center gap-1.5 rounded-lg p-2 text-center hover:bg-slate-50">
+              <div className={`flex size-11 items-center justify-center rounded-lg ${q.color} text-sm font-bold text-white`}>
+                {q.code}
+              </div>
+              <span className="text-xs font-medium text-ink-soft">{q.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      {/* Stat cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
-            <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-brand-red-light text-brand-red">
+          <div key={s.label} className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+            <div className={`mb-3 flex size-9 items-center justify-center rounded-lg ${s.color}`}>
               <s.icon size={18} />
             </div>
             <p className="text-2xl font-bold text-ink">{s.value}</p>
             <p className="text-xs text-ink-soft">{s.label}</p>
           </div>
         ))}
+        {!summary && !error && (
+          <p className="col-span-full text-sm text-ink-soft">Loading stats…</p>
+        )}
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-2">
-        {/* Low stock */}
-        <div className="rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
-          <div className="mb-4 flex items-center gap-2">
-            <AlertTriangle size={16} className="text-amber-500" />
-            <h2 className="font-display text-lg font-semibold text-ink">Inventory alerts</h2>
-          </div>
-          <div className="space-y-3">
+      {/* Low stock table */}
+      <div className="rounded-xl border border-slate-200 bg-white shadow-soft">
+        <div className="flex items-center gap-2 border-b border-slate-200 p-4">
+          <AlertTriangle size={16} className="text-amber-500" />
+          <h2 className="font-display text-sm font-semibold text-ink">Inventory alerts</h2>
+        </div>
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+              <th className="px-4 py-2 font-medium">Product</th>
+              <th className="px-4 py-2 font-medium">SKU</th>
+              <th className="px-4 py-2 font-medium">Status</th>
+              <th className="px-4 py-2 font-medium text-right">Stock</th>
+            </tr>
+          </thead>
+          <tbody>
+            {lowStock.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-6 text-center text-ink-soft">
+                  Nothing low on stock.
+                </td>
+              </tr>
+            )}
             {lowStock.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-ink">{p.title}</p>
-                  <p className="part-code text-xs text-ink-soft">{p.sku}</p>
-                </div>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${p.stockStatus === "OUT_OF_STOCK" ? "bg-surface-muted text-ink-soft" : "bg-amber-50 text-amber-600"}`}>
-                  {p.stockQuantity} left
-                </span>
-              </div>
+              <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
+                <td className="px-4 py-2.5">
+                  <Link href={`/admin/products/${p.id}`} className="font-medium text-ink hover:text-brand-red">
+                    {p.title}
+                  </Link>
+                </td>
+                <td className="part-code px-4 py-2.5 text-ink-soft">{p.sku}</td>
+                <td className="px-4 py-2.5">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.stockStatus === "OUT_OF_STOCK" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-600"}`}>
+                    {p.stockStatus.replace(/_/g, " ")}
+                  </span>
+                </td>
+                <td className="px-4 py-2.5 text-right font-semibold text-ink">{p.stockQuantity}</td>
+              </tr>
             ))}
-          </div>
-        </div>
-
-        {/* Recent orders */}
-        <div className="rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
-          <div className="mb-4 flex items-center gap-2">
-            <ShoppingBag size={16} className="text-brand-red" />
-            <h2 className="font-display text-lg font-semibold text-ink">Recent orders</h2>
-          </div>
-          <div className="space-y-3">
-            {recentOrders.map((o) => (
-              <div key={o.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="part-code font-medium text-ink">{o.id}</p>
-                  <p className="text-xs text-ink-soft">{o.customer}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">{o.status}</span>
-                  <span className="font-semibold text-ink">€{o.total.toFixed(2)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Review moderation */}
-        <div className="rounded-xl border border-surface-border bg-surface p-5 shadow-soft lg:col-span-2">
-          <div className="mb-4 flex items-center gap-2">
-            <Star size={16} className="text-brand-red" />
-            <h2 className="font-display text-lg font-semibold text-ink">Pending review moderation</h2>
-          </div>
-          <div className="flex items-center justify-between rounded-lg bg-surface-muted p-4 text-sm">
-            <div>
-              <p className="font-medium text-ink">"Great fit, arrived fast" — Brembo Front Brake Pad Set</p>
-              <p className="text-xs text-ink-soft">by Genc M. · ★★★★★</p>
-            </div>
-            <div className="flex gap-2">
-              <button className="rounded-lg bg-success px-3 py-1.5 text-xs font-semibold text-white">Approve</button>
-              <button className="rounded-lg border border-surface-border px-3 py-1.5 text-xs font-semibold text-ink-soft">Reject</button>
-            </div>
-          </div>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
   );
