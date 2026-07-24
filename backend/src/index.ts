@@ -34,14 +34,28 @@ app.use(cors({ origin: process.env.CORS_ORIGIN?.split(",") || "http://localhost:
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
 
-// Generic API rate limiter — tighten further on /auth in production.
+// Generic API rate limiter.
 app.use(
   "/api",
   rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false })
 );
 
+// Tighter limiter on credential-guessing-prone auth routes (login, register,
+// password reset) — brute force / credential stuffing protection.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many attempts. Please try again later." },
+});
+
 app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 
+app.use("/api/auth/login", authLimiter);
+app.use("/api/auth/register", authLimiter);
+app.use("/api/auth/forgot-password", authLimiter);
+app.use("/api/auth/reset-password", authLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/vehicles", vehicleRoutes);

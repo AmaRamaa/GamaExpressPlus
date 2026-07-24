@@ -2,6 +2,11 @@
 
 import { useState, type ChangeEvent } from "react";
 import Papa from "papaparse";
+// xlsx has an unpatched prototype-pollution/ReDoS advisory with no fixed npm
+// release. Risk is accepted here: this page is ADMIN-only (route-guarded)
+// and only ever parses a file the admin chooses themselves, and every field
+// pulled from the parsed rows below is explicitly picked (never spread), so
+// a malicious workbook can't smuggle extra fields into the backend payload.
 import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, CheckCircle2, XCircle, Download } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
