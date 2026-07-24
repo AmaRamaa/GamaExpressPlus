@@ -1,6 +1,10 @@
 import { ShieldCheck, Truck, Users, Package } from "lucide-react";
 import { api } from "@/lib/api";
 
+// See app/(site)/page.tsx for why this is forced dynamic rather than
+// statically generated at build time.
+export const dynamic = "force-dynamic";
+
 const stats = [
   { icon: Package, value: "1,000+", label: "Exterior parts catalogued" },
   { icon: Users, value: "12+", label: "Vehicle makes supported" },

@@ -7,6 +7,13 @@ import { api } from "@/lib/api";
 import { mapProduct, mapBrand, mapCategory } from "@/lib/adapters";
 import type { Category, Brand } from "@/lib/types";
 
+// This page fetches live catalog data (products, categories, brands admins
+// can change at any time). Rendering it dynamically per-request, rather
+// than Next's default of freezing it as static HTML at build time, keeps
+// it showing current data and means the build itself never depends on the
+// backend being reachable at that exact moment.
+export const dynamic = "force-dynamic";
+
 interface ProductListResponse {
   items: any[];
 }
