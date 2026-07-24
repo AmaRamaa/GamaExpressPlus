@@ -1,31 +1,60 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Search, Clock, TrendingUp } from "lucide-react";
-import { popularSearches, searchProducts } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
 import { PartCode, SignInForPrice } from "./ui-bits";
 
+interface SuggestedProduct {
+  id: string;
+  title: string;
+  slug: string;
+  priceEur: number;
+  discountPriceEur: number | null;
+  partNumber: string;
+}
+
 export default function SearchBar() {
   const router = useRouter();
   const user = useStore((s) => s.user);
+  const token = useStore((s) => s.token);
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestedProduct[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
+  const [popular, setPopular] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const suggestions = useMemo(() => {
-    if (query.trim().length < 2) return [];
-    return searchProducts(query).slice(0, 5);
+  useEffect(() => {
+    api.get<string[]>("/search/popular").then(setPopular).catch(() => {});
+    if (token) {
+      api.get<string[]>("/search/recent", token).then(setRecent).catch(() => {});
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const handle = setTimeout(() => {
+      api
+        .get<{ products: SuggestedProduct[] }>(`/search/suggest?q=${encodeURIComponent(query)}`)
+        .then((res) => setSuggestions(res.products.slice(0, 5)))
+        .catch(() => setSuggestions([]));
+    }, 250);
+    return () => clearTimeout(handle);
   }, [query]);
 
   function submitSearch(term: string) {
     if (!term.trim()) return;
     setRecent((prev) => [term, ...prev.filter((t) => t !== term)].slice(0, 5));
     setFocused(false);
+    api.post("/search/track", { query: term }, token).catch(() => {});
     router.push(`/products?q=${encodeURIComponent(term)}`);
   }
 
@@ -65,7 +94,7 @@ export default function SearchBar() {
                     </div>
                     {user ? (
                       <span className="text-sm font-semibold text-brand-red">
-                        €{getEffectivePrice(p, user).finalPrice.toFixed(2)}
+                        €{getEffectivePrice({ priceEur: p.priceEur, discountPriceEur: p.discountPriceEur ?? undefined } as any, user).finalPrice.toFixed(2)}
                       </span>
                     ) : (
                       <SignInForPrice size="xs" />
@@ -95,22 +124,28 @@ export default function SearchBar() {
                 </div>
               )}
 
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
-                  <TrendingUp size={12} /> Popular searches
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {popularSearches.map((term) => (
-                    <button
-                      key={term}
-                      onClick={() => submitSearch(term)}
-                      className="rounded-full border border-surface-border px-3 py-1 text-xs text-ink hover:border-brand-red hover:text-brand-red"
-                    >
-                      {term}
-                    </button>
-                  ))}
+              {popular.length > 0 && (
+                <div>
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                    <TrendingUp size={12} /> Popular searches
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {popular.map((term) => (
+                      <button
+                        key={term}
+                        onClick={() => submitSearch(term)}
+                        className="rounded-full border border-surface-border px-3 py-1 text-xs text-ink hover:border-brand-red hover:text-brand-red"
+                      >
+                        {term}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {recent.length === 0 && popular.length === 0 && (
+                <p className="text-center text-xs text-ink-soft">Start typing to search parts…</p>
+              )}
             </div>
           )}
         </div>

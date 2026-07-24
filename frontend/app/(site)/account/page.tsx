@@ -1,19 +1,37 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Package, Car, Heart, MapPin, User, FileText, LogOut } from "lucide-react";
+import { Package, Car, Heart, MapPin, User, LogOut } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { products } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { mapProduct } from "@/lib/adapters";
 import { StockBadge } from "@/components/ui-bits";
 import ProductVisual from "@/components/ProductVisual";
 import ProductPrice from "@/components/ProductPrice";
+import type { Product } from "@/lib/types";
 
-const mockOrders = [
-  { id: "GE-2026-000118", date: "2026-06-28", status: "Delivered", total: 78.4, items: 2 },
-  { id: "GE-2026-000094", date: "2026-06-02", status: "Shipped", total: 142.0, items: 1 },
-];
+interface OrderRow {
+  id: string;
+  orderNumber: string;
+  status: string;
+  totalEur: number;
+  createdAt: string;
+  items: { id: string }[];
+}
+
+interface AddressRow {
+  id: string;
+  label: string;
+  fullName: string;
+  phone: string;
+  addressLine1: string;
+  city: string;
+  postalCode: string | null;
+  country: string;
+  isDefault: boolean;
+}
 
 const sections = [
   { id: "orders", label: "Order history", icon: Package },
@@ -31,10 +49,31 @@ function AccountPageContent() {
   const initialTab: SectionId = sections.some((s) => s.id === requestedTab) ? (requestedTab as SectionId) : "orders";
   const [active, setActive] = useState<SectionId>(initialTab);
   const wishlistIds = useStore((s) => s.wishlist);
-  const wishlistProducts = products.filter((p) => wishlistIds.includes(p.id));
   const vehicle = useStore((s) => s.vehicle);
   const user = useStore((s) => s.user);
+  const token = useStore((s) => s.token);
   const logout = useStore((s) => s.logout);
+
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [addresses, setAddresses] = useState<AddressRow[]>([]);
+  const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    if (!token) return;
+    api.get<OrderRow[]>("/orders", token).then(setOrders).catch(() => {});
+    api.get<AddressRow[]>("/addresses", token).then(setAddresses).catch(() => {});
+  }, [token]);
+
+  useEffect(() => {
+    if (wishlistIds.length === 0) {
+      setWishlistProducts([]);
+      return;
+    }
+    api
+      .get<{ items: any[] }>(`/products?ids=${wishlistIds.join(",")}&limit=${wishlistIds.length}`)
+      .then((res) => setWishlistProducts(res.items.map(mapProduct)))
+      .catch(() => setWishlistProducts([]));
+  }, [wishlistIds]);
 
   if (!user) {
     return (
@@ -86,21 +125,22 @@ function AccountPageContent() {
         <div>
           {active === "orders" && (
             <div className="space-y-3">
-              {mockOrders.map((o) => (
-                <div key={o.id} className="flex items-center justify-between rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
-                  <div>
-                    <p className="part-code text-sm font-medium text-ink">{o.id}</p>
-                    <p className="text-xs text-ink-soft">{o.date} · {o.items} item(s)</p>
+              {orders.length === 0 ? (
+                <p className="text-sm text-ink-soft">No orders yet.</p>
+              ) : (
+                orders.map((o) => (
+                  <div key={o.id} className="flex items-center justify-between rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
+                    <div>
+                      <p className="part-code text-sm font-medium text-ink">{o.orderNumber}</p>
+                      <p className="text-xs text-ink-soft">{new Date(o.createdAt).toLocaleDateString()} · {o.items.length} item(s)</p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">{o.status}</span>
+                      <span className="text-sm font-semibold text-ink">€{o.totalEur.toFixed(2)}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">{o.status}</span>
-                    <span className="text-sm font-semibold text-ink">€{o.total.toFixed(2)}</span>
-                    <button className="flex items-center gap-1 text-xs font-medium text-brand-red hover:underline">
-                      <FileText size={12} /> Invoice
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
 
@@ -142,10 +182,21 @@ function AccountPageContent() {
           )}
 
           {active === "addresses" && (
-            <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
-              <p className="font-medium text-ink">Home</p>
-              <p className="text-sm text-ink-soft">Rr. Nëna Terezë 12, 10000 Prishtinë, Kosovë</p>
-              <button className="mt-3 text-xs font-medium text-brand-red hover:underline">Edit address</button>
+            <div className="space-y-3">
+              {addresses.length === 0 ? (
+                <p className="text-sm text-ink-soft">No addresses saved yet.</p>
+              ) : (
+                addresses.map((a) => (
+                  <div key={a.id} className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-ink">{a.label}</p>
+                      {a.isDefault && <span className="rounded-full bg-brand-red-light px-2 py-0.5 text-[10px] font-semibold text-brand-red">Default</span>}
+                    </div>
+                    <p className="text-sm text-ink-soft">{a.addressLine1}, {a.postalCode ? `${a.postalCode} ` : ""}{a.city}, {a.country}</p>
+                    <p className="text-xs text-ink-soft">{a.fullName} · {a.phone}</p>
+                  </div>
+                ))
+              )}
             </div>
           )}
 
@@ -153,13 +204,13 @@ function AccountPageContent() {
             <div className="max-w-md space-y-4 rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">Full name</label>
-                <input defaultValue={user.name} className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm" />
+                <input defaultValue={user.name} disabled className="w-full rounded-lg border border-surface-border bg-surface-muted px-3 py-2 text-sm text-ink-soft" />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium text-ink-soft">Email</label>
-                <input defaultValue={user.email} className="w-full rounded-lg border border-surface-border px-3 py-2 text-sm" />
+                <input defaultValue={user.email} disabled className="w-full rounded-lg border border-surface-border bg-surface-muted px-3 py-2 text-sm text-ink-soft" />
               </div>
-              <button className="rounded-lg bg-brand-red px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark">Save changes</button>
+              <p className="text-xs text-ink-soft">Contact us to update your account details.</p>
             </div>
           )}
         </div>

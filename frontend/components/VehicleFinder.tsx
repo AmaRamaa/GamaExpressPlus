@@ -3,20 +3,39 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleGauge, ChevronDown } from "lucide-react";
-import { vehicleMakes } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/i18n";
-import type { VehicleMake } from "@/lib/types";
 
-function MakeBadge({ make, size = 20 }: { make: VehicleMake; size?: number }) {
+interface Make {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+}
+
+interface Model {
+  id: string;
+  name: string;
+  makeId: string;
+}
+
+interface Generation {
+  id: string;
+  name: string;
+  yearFrom: number;
+  yearTo: number | null;
+  bodyType?: string | null;
+}
+
+function MakeBadge({ make, size = 20 }: { make: Make; size?: number }) {
   if (make.logoUrl) {
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={make.logoUrl} alt="" className="shrink-0 rounded-full object-contain" style={{ width: size, height: size }} />;
   }
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-white"
-      style={{ width: size, height: size, background: make.color || "#4B5563", fontSize: size * 0.5 }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full bg-ink-soft font-display font-semibold text-white"
+      style={{ width: size, height: size, fontSize: size * 0.5 }}
     >
       {make.name.charAt(0)}
     </span>
@@ -28,11 +47,35 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
   const setVehicle = useStore((s) => s.setVehicle);
   const { t } = useT();
 
+  const [makes, setMakes] = useState<Make[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
+  const [generations, setGenerations] = useState<Generation[]>([]);
+
   const [makeId, setMakeId] = useState("");
   const [modelId, setModelId] = useState("");
   const [yearInput, setYearInput] = useState("");
   const [makeMenuOpen, setMakeMenuOpen] = useState(false);
   const makeMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    api.get<Make[]>("/vehicles/makes").then(setMakes).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!makeId) {
+      setModels([]);
+      return;
+    }
+    api.get<Model[]>(`/vehicles/makes/${makeId}/models`).then(setModels).catch(() => setModels([]));
+  }, [makeId]);
+
+  useEffect(() => {
+    if (!modelId) {
+      setGenerations([]);
+      return;
+    }
+    api.get<Generation[]>(`/vehicles/models/${modelId}/generations`).then(setGenerations).catch(() => setGenerations([]));
+  }, [modelId]);
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
@@ -44,8 +87,8 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const make = vehicleMakes.find((m) => m.id === makeId);
-  const model = make?.models.find((m) => m.id === modelId);
+  const make = makes.find((m) => m.id === makeId);
+  const model = models.find((m) => m.id === modelId);
 
   function selectMake(id: string) {
     setMakeId(id);
@@ -54,8 +97,8 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
   }
 
   const sortedGenerations = useMemo(
-    () => (model ? [...model.generations].sort((a, b) => a.yearFrom - b.yearFrom) : []),
-    [model]
+    () => [...generations].sort((a, b) => a.yearFrom - b.yearFrom),
+    [generations]
   );
 
   const year = yearInput.trim() ? Number(yearInput) : null;
@@ -92,7 +135,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
       makeId: make.id, makeName: make.name,
       modelId: model.id, modelName: model.name,
       generationId: matchedGeneration.id, generationName: matchedGeneration.name,
-      variant: matchedGeneration.bodyType,
+      variant: matchedGeneration.bodyType ?? undefined,
       year,
     });
     router.push(`/products?generationId=${matchedGeneration.id}`);
@@ -128,7 +171,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
               role="listbox"
               className="absolute left-0 top-full z-30 mt-1 max-h-64 w-full min-w-[190px] overflow-y-auto rounded-lg border border-surface-border bg-surface p-1 shadow-lifted"
             >
-              {vehicleMakes.map((m) => (
+              {makes.map((m) => (
                 <li key={m.id} role="option" aria-selected={m.id === makeId}>
                   <button
                     type="button"
@@ -156,7 +199,7 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
           }}
         >
           <option value="">{t.vehicleFinder.model}</option>
-          {make?.models.map((m) => (
+          {models.map((m) => (
             <option key={m.id} value={m.id}>{m.name}</option>
           ))}
         </select>

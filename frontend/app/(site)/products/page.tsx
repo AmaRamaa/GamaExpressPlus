@@ -1,11 +1,18 @@
 "use client";
 
-import { Suspense, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { SlidersHorizontal, Car } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import VehicleFinder from "@/components/VehicleFinder";
-import { categories, products, searchProducts, getEngineIdsForGeneration } from "@/lib/mock-data";
+import { api } from "@/lib/api";
+import { mapProduct, mapCategory } from "@/lib/adapters";
+import type { Product, Category } from "@/lib/types";
+
+interface ProductListResponse {
+  items: any[];
+  total: number;
+}
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
@@ -13,28 +20,42 @@ function ProductsPageContent() {
   const categorySlug = searchParams.get("category") || "";
   const brandSlug = searchParams.get("brand") || "";
   const generationId = searchParams.get("generationId") || "";
+  const featured = searchParams.get("featured") || "";
 
   const [selectedCategory, setSelectedCategory] = useState(categorySlug);
-  const selectedBrand = brandSlug;
-  const [sort, setSort] = useState("relevance");
+  const [sort, setSort] = useState(searchParams.get("sort") || "relevance");
   const [maxPrice, setMaxPrice] = useState(200);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = useMemo(() => {
-    let list = q ? searchProducts(q) : [...products];
-    if (generationId) {
-      const engineIds = getEngineIdsForGeneration(generationId);
-      list = list.filter((p) => p.compatibleEngineIds.some((id) => engineIds.includes(id)));
-    }
-    if (selectedCategory) list = list.filter((p) => p.categorySlug === selectedCategory);
-    if (selectedBrand) list = list.filter((p) => p.brand.slug === selectedBrand);
-    list = list.filter((p) => (p.discountPriceEur ?? p.priceEur) <= maxPrice);
+  useEffect(() => {
+    api.get<any[]>("/catalog/categories").then((raw) => setCategories(raw.map(mapCategory))).catch(() => {});
+  }, []);
 
-    if (sort === "price_asc") list.sort((a, b) => (a.discountPriceEur ?? a.priceEur) - (b.discountPriceEur ?? b.priceEur));
-    if (sort === "price_desc") list.sort((a, b) => (b.discountPriceEur ?? b.priceEur) - (a.discountPriceEur ?? a.priceEur));
-    if (sort === "rating") list.sort((a, b) => b.rating - a.rating);
+  useEffect(() => {
+    const params = new URLSearchParams({ limit: "48" });
+    if (q) params.set("q", q);
+    if (generationId) params.set("generationId", generationId);
+    if (selectedCategory) params.set("category", selectedCategory);
+    if (brandSlug) params.set("brand", brandSlug);
+    if (featured) params.set("featured", featured);
+    if (maxPrice < 200) params.set("maxPrice", String(maxPrice));
+    if (sort !== "rating") params.set("sort", sort);
 
-    return list;
-  }, [q, generationId, selectedCategory, selectedBrand, sort, maxPrice]);
+    setLoading(true);
+    api
+      .get<ProductListResponse>(`/products?${params.toString()}`)
+      .then((res) => {
+        let items = res.items.map(mapProduct);
+        if (sort === "rating") items = [...items].sort((a, b) => b.rating - a.rating);
+        setProducts(items);
+        setTotal(res.total);
+      })
+      .catch(() => setProducts([]))
+      .finally(() => setLoading(false));
+  }, [q, generationId, selectedCategory, brandSlug, featured, sort, maxPrice]);
 
   return (
     <div className="container-page py-8">
@@ -42,7 +63,7 @@ function ProductsPageContent() {
         <h1 className="font-display text-2xl font-bold text-ink">
           {q ? `Results for "${q}"` : generationId ? "Parts compatible with your vehicle" : "All parts"}
         </h1>
-        <p className="text-sm text-ink-soft">{filtered.length} products found</p>
+        <p className="text-sm text-ink-soft">{loading ? "Loading…" : `${total} products found`}</p>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
@@ -100,18 +121,19 @@ function ProductsPageContent() {
               <option value="relevance">Sort: Relevance</option>
               <option value="price_asc">Price: Low to High</option>
               <option value="price_desc">Price: High to Low</option>
+              <option value="newest">Newest</option>
               <option value="rating">Highest Rated</option>
             </select>
           </div>
 
-          {filtered.length === 0 ? (
+          {!loading && products.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-border bg-surface p-12 text-center">
               <p className="font-display text-lg font-semibold text-ink">No parts match those filters</p>
               <p className="mt-1 text-sm text-ink-soft">Try widening your price range or clearing a filter.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-              {filtered.map((p) => <ProductCard key={p.id} product={p} />)}
+              {products.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
           )}
         </div>

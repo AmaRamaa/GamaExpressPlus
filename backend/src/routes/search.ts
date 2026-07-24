@@ -21,7 +21,7 @@ router.get("/suggest", async (req, res) => {
         ],
       },
       take: 6,
-      select: { id: true, title: true, slug: true, priceEur: true, partNumber: true, images: { take: 1 } },
+      select: { id: true, title: true, slug: true, priceEur: true, discountPriceEur: true, partNumber: true, images: { take: 1 } },
     }),
     prisma.category.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4 }),
     prisma.brand.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4 }),

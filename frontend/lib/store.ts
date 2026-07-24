@@ -3,14 +3,41 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { AuthUser, CartLine, Product, SelectedVehicle } from "./types";
-import { demoAccounts } from "./mock-data";
 import type { Locale } from "./i18n";
+import { api, ApiError } from "./api";
+
+interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+  user: {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    isBusinessAccount: boolean;
+    companyName: string | null;
+    wholesaleDiscountPct: number | null;
+  };
+}
+
+function toAuthUser(raw: LoginResponse["user"]): AuthUser {
+  return {
+    id: raw.id,
+    name: `${raw.firstName} ${raw.lastName}`.trim(),
+    email: raw.email,
+    discountPercent: raw.wholesaleDiscountPct ?? 0,
+    accountLabel: raw.companyName || (raw.isBusinessAccount ? "Business account" : undefined),
+  };
+}
 
 interface StoreState {
   cart: CartLine[];
   wishlist: string[];
   vehicle: SelectedVehicle | null;
   user: AuthUser | null;
+  token: string | null;
+  refreshToken: string | null;
   locale: Locale;
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
@@ -18,7 +45,7 @@ interface StoreState {
   toggleWishlist: (productId: string) => void;
   setVehicle: (vehicle: SelectedVehicle | null) => void;
   clearCart: () => void;
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
   setLocale: (locale: Locale) => void;
 }
@@ -30,6 +57,8 @@ export const useStore = create<StoreState>()(
       wishlist: [],
       vehicle: null,
       user: null,
+      token: null,
+      refreshToken: null,
       locale: "sq",
 
       addToCart: (product, quantity = 1) => {
@@ -63,24 +92,17 @@ export const useStore = create<StoreState>()(
 
       clearCart: () => set({ cart: [] }),
 
-      login: (email, password) => {
-        const account = demoAccounts.find(
-          (a) => a.email.toLowerCase() === email.trim().toLowerCase() && a.password === password
-        );
-        if (!account) return false;
-        set({
-          user: {
-            id: account.id,
-            name: account.name,
-            email: account.email,
-            discountPercent: account.discountPercent,
-            accountLabel: account.accountLabel,
-          },
-        });
-        return true;
+      login: async (email, password) => {
+        try {
+          const data = await api.post<LoginResponse>("/auth/login", { email, password });
+          set({ token: data.accessToken, refreshToken: data.refreshToken, user: toAuthUser(data.user) });
+          return { ok: true };
+        } catch (err) {
+          return { ok: false, error: err instanceof ApiError ? err.message : "Login failed" };
+        }
       },
 
-      logout: () => set({ user: null }),
+      logout: () => set({ user: null, token: null, refreshToken: null }),
 
       setLocale: (locale) => set({ locale }),
     }),

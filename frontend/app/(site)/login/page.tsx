@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { LogIn } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { demoAccounts } from "@/lib/mock-data";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,13 +12,18 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (login(email, password)) {
+    setError("");
+    setLoading(true);
+    const result = await login(email, password);
+    setLoading(false);
+    if (result.ok) {
       router.push("/account");
     } else {
-      setError("Invalid email or password.");
+      setError(result.error || "Invalid email or password.");
     }
   }
 
@@ -57,8 +61,8 @@ export default function LoginPage() {
             />
           </div>
           {error && <p className="text-xs text-brand-red">{error}</p>}
-          <button type="submit" className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark">
-            Sign in
+          <button type="submit" disabled={loading} className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60">
+            {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
 
@@ -68,16 +72,6 @@ export default function LoginPage() {
           {" "}or{" "}
           <Link href="/contact" className="font-medium text-brand-red hover:underline">contact us</Link>.
         </p>
-
-        <div className="mt-6 rounded-xl border border-dashed border-surface-border bg-surface-muted p-4 text-xs text-ink-soft">
-          <p className="mb-1.5 font-semibold text-ink">Prototype demo accounts</p>
-          {demoAccounts.map((a) => (
-            <p key={a.id}>
-              {a.email} / {a.password}
-              {a.discountPercent > 0 ? ` — ${a.discountPercent}% off (${a.accountLabel})` : " — standard pricing"}
-            </p>
-          ))}
-        </div>
       </div>
     </div>
   );

@@ -1,15 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
-import { megaMenu } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 import { resolveIcon } from "@/lib/icon-map";
 import { useT } from "@/lib/i18n";
 
+interface CategoryGroup {
+  slug: string;
+  name: string;
+  icon: string;
+  children: { slug: string; name: string }[];
+}
+
 export default function MegaMenu() {
   const [openSlug, setOpenSlug] = useState<string | null>(null);
+  const [megaMenu, setMegaMenu] = useState<CategoryGroup[]>([]);
   const { t } = useT();
+
+  useEffect(() => {
+    api.get<CategoryGroup[]>("/catalog/categories").then(setMegaMenu).catch(() => {});
+  }, []);
 
   return (
     <nav className="hidden border-t border-surface-border bg-surface lg:block">
@@ -35,10 +47,10 @@ export default function MegaMenu() {
                 <ChevronDown size={12} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
               </Link>
 
-              {isOpen && (
+              {isOpen && group.children.length > 0 && (
                 <div className="absolute left-0 top-full z-30 w-64 rounded-b-xl border border-t-0 border-surface-border bg-surface p-4 shadow-lifted">
                   <ul className="space-y-1">
-                    {group.subcategories.map((sub) => (
+                    {group.children.map((sub) => (
                       <li key={sub.slug}>
                         <Link
                           href={`/products?category=${group.slug}&sub=${sub.slug}`}

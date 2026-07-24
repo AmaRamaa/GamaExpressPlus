@@ -50,7 +50,11 @@ router.post("/register", async (req, res) => {
   res.status(201).json({
     accessToken,
     refreshToken,
-    user: { id: user.id, email: user.email, firstName, lastName, role: user.role },
+    user: {
+      id: user.id, email: user.email, firstName, lastName, role: user.role,
+      isBusinessAccount: user.isBusinessAccount, companyName: user.companyName,
+      wholesaleDiscountPct: user.wholesaleDiscountPct,
+    },
   });
 });
 
@@ -76,7 +80,11 @@ router.post("/login", async (req, res) => {
   res.json({
     accessToken,
     refreshToken,
-    user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role },
+    user: {
+      id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role,
+      isBusinessAccount: user.isBusinessAccount, companyName: user.companyName,
+      wholesaleDiscountPct: user.wholesaleDiscountPct,
+    },
   });
 });
 

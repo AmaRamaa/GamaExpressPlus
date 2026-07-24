@@ -1,30 +1,53 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus } from "lucide-react";
-import { getProductBySlug, products } from "@/lib/mock-data";
+import { api, ApiError } from "@/lib/api";
+import { mapProduct } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
 import { PartCode, StarRating, StockBadge } from "@/components/ui-bits";
 import ProductCard from "@/components/ProductCard";
 import ProductPrice from "@/components/ProductPrice";
 import ProductVisual from "@/components/ProductVisual";
+import type { Product } from "@/lib/types";
 
 const tabs = ["Overview", "Specifications", "Compatible vehicles", "Reviews"] as const;
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
-  const product = getProductBySlug(slug);
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const isWishlisted = useStore((s) => s.wishlist.includes(product?.id ?? ""));
 
+  const [product, setProduct] = useState<Product | null>(null);
+  const isWishlisted = useStore((s) => s.wishlist.includes(product?.id ?? ""));
+  const [related, setRelated] = useState<Product[]>([]);
+  const [notFound, setNotFound] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
 
-  if (!product) {
+  useEffect(() => {
+    setProduct(null);
+    setNotFound(false);
+    api
+      .get<any>(`/products/${slug}`)
+      .then((raw) => {
+        const p = mapProduct(raw);
+        setProduct(p);
+        return api.get<{ items: any[] }>(`/products?category=${p.categorySlug}&limit=5`);
+      })
+      .then((res) => {
+        if (!res) return;
+        setRelated(res.items.map(mapProduct).filter((r) => r.slug !== slug).slice(0, 4));
+      })
+      .catch((e) => {
+        if (e instanceof ApiError && e.status === 404) setNotFound(true);
+      });
+  }, [slug]);
+
+  if (notFound) {
     return (
       <div className="container-page py-16 text-center">
         <p className="font-display text-xl font-semibold text-ink">Product not found</p>
@@ -33,7 +56,9 @@ export default function ProductDetailPage() {
     );
   }
 
-  const related = products.filter((p) => p.categorySlug === product.categorySlug && p.id !== product.id).slice(0, 4);
+  if (!product) {
+    return <div className="container-page py-16 text-center text-ink-soft">Loading…</div>;
+  }
 
   return (
     <div className="container-page py-8">

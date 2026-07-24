@@ -1,5 +1,5 @@
 import { ShieldCheck, Truck, Users, Package } from "lucide-react";
-import { supportedMakes, brands } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 
 const stats = [
   { icon: Package, value: "1,000+", label: "Exterior parts catalogued" },
@@ -8,7 +8,13 @@ const stats = [
   { icon: Truck, value: "Same-day", label: "Dispatch from Prishtinë" },
 ];
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const [brands, makes] = await Promise.all([
+    api.get<{ name: string }[]>("/catalog/brands"),
+    api.get<{ name: string }[]>("/vehicles/makes"),
+  ]);
+  const supportedMakes = makes.map((m) => m.name);
+
   return (
     <div className="container-page py-12">
       <div className="mx-auto max-w-2xl text-center">
