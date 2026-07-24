@@ -19,6 +19,7 @@ import quoteRoutes from "./routes/quotes";
 import contentRoutes from "./routes/content";
 import adminRoutes from "./routes/admin";
 import uploadRoutes from "./routes/uploads";
+import { prisma } from "./lib/prisma";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -86,12 +87,31 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
   res.status(err.status || 500).json({ error: err.message || "Internal server error" });
 });
 
-if (HOST) {
-  app.listen(Number(PORT), HOST, () => {
-    console.log(`Gama Express API running on http://${HOST}:${PORT}`);
+const server = HOST
+  ? app.listen(Number(PORT), HOST, () => {
+      console.log(`Gama Express API running on http://${HOST}:${PORT}`);
+    })
+  : app.listen(PORT, () => {
+      console.log(`Gama Express API running on http://localhost:${PORT}`);
+    });
+
+// Hosts like Railway send SIGTERM on every redeploy/restart. Without this,
+// the process gets killed mid-flight and leaves its database connection
+// dangling on Supabase's pooler until it eventually times out -- across
+// enough restarts that exhausts the pooler's connection limit outright.
+// Closing the DB connection and HTTP server explicitly here means a
+// redeploy releases its connection immediately instead of leaking it.
+function shutdown(signal: string) {
+  console.log(`${signal} received, shutting down gracefully`);
+  server.close(() => {
+    prisma
+      .$disconnect()
+      .catch((err) => console.error("Error disconnecting Prisma:", err))
+      .finally(() => process.exit(0));
   });
-} else {
-  app.listen(PORT, () => {
-    console.log(`Gama Express API running on http://localhost:${PORT}`);
-  });
+  // Force-exit if graceful shutdown hangs longer than the host's kill timeout would allow.
+  setTimeout(() => process.exit(1), 8000).unref();
 }
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
