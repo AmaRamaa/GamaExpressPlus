@@ -23,6 +23,13 @@ import uploadRoutes from "./routes/uploads";
 const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Railway (and most PaaS hosts) sit behind a single reverse proxy that sets
+// X-Forwarded-For with the real client IP. Trusting exactly one hop lets
+// express-rate-limit key off the actual client instead of the proxy itself,
+// without blindly trusting an arbitrary chain (which would let a client
+// spoof their own IP via the header).
+app.set("trust proxy", 1);
+
 function getHostArg(): string | undefined {
   const idx = process.argv.indexOf("--host");
   return idx !== -1 ? process.argv[idx + 1] : process.env.HOST;
