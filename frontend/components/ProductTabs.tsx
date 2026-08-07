@@ -40,7 +40,7 @@ export default function ProductTabs({ tabs }: { tabs: Tab[] }) {
       {current.products.length === 0 ? (
         <p className="py-8 text-center text-sm text-ink-soft">No products in this section yet.</p>
       ) : (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
           {current.products.map((p) => <ProductCard key={p.id} product={p} />)}
         </div>
       )}
