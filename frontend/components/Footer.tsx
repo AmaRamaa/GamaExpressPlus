@@ -28,7 +28,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="mt-16 border-t border-surface-border bg-ink text-white/80">
+    <footer className="border-t border-surface-border bg-ink text-white/80">
       <div className="container-page grid grid-cols-2 gap-8 py-12 md:grid-cols-4 lg:grid-cols-5">
         <div className="col-span-2 lg:col-span-1">
           <div className="mb-3 inline-block rounded-lg bg-white px-3 py-2">
