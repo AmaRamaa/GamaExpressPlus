@@ -10,10 +10,6 @@ import {
   Lightbulb,
   Frame,
   PanelTop,
-  Award,
-  Package,
-  Users,
-  Sparkles,
 } from "lucide-react";
 import VehicleFinder from "@/components/VehicleFinder";
 import ProductTabs from "@/components/ProductTabs";
@@ -55,13 +51,6 @@ const trustPoints = [
   { icon: Truck, title: "Fast Kosovo delivery", desc: "Same-day dispatch from our Prishtinë warehouse" },
   { icon: Wrench, title: "Genuine & aftermarket", desc: "OEM and trusted aftermarket brands side by side" },
   { icon: Headset, title: "Real support", desc: "Talk to someone who knows the parts catalog" },
-];
-
-const stats = [
-  { icon: Award, value: "10+", label: "Years serving Kosovo" },
-  { icon: Package, value: "1,000s", label: "Exterior parts in stock" },
-  { icon: Sparkles, value: "9+", label: "Trusted brands carried" },
-  { icon: Users, value: "Garages &", label: "individual drivers alike" },
 ];
 
 export default async function HomePage() {
@@ -137,21 +126,6 @@ export default async function HomePage() {
           <div className="flex items-center">
             <VehicleFinder />
           </div>
-        </div>
-      </section>
-
-      {/* Stats band */}
-      <section className="bg-brand-red">
-        <div className="container-page grid grid-cols-2 gap-6 py-6 sm:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="flex items-center gap-3">
-              <s.icon size={22} className="shrink-0 text-white/80" />
-              <div>
-                <p className="font-display text-lg font-bold leading-none text-white">{s.value}</p>
-                <p className="mt-1 text-xs text-white/75">{s.label}</p>
-              </div>
-            </div>
-          ))}
         </div>
       </section>
 
@@ -251,7 +225,7 @@ export default async function HomePage() {
 
       {/* Brands */}
       {brands.length > 0 && (
-        <section className="border-y border-surface-border bg-ink py-10">
+        <section className="bg-ink py-10">
           <div className="container-page mb-6 flex items-end justify-between">
             <div>
               <span className="mb-2 inline-block text-xs font-semibold uppercase tracking-wide text-brand-red-light">
@@ -280,7 +254,7 @@ export default async function HomePage() {
       )}
 
       {/* Request a part CTA */}
-      <section className="relative overflow-hidden border-t border-surface-border bg-gradient-to-br from-brand-red to-brand-red-dark">
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-red to-brand-red-dark">
         <Image
           src="/emblem-white.png"
           alt=""
