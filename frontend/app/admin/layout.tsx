@@ -7,18 +7,21 @@ import {
   LayoutDashboard,
   Package,
   Tags,
+  Factory,
   FolderTree,
   Upload,
   ShoppingBag,
   Users,
   LogOut,
 } from "lucide-react";
+import { Toaster } from "sonner";
 import { useAdminStore } from "@/lib/admin-store";
 
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/brands", label: "Brands", icon: Tags },
+  { href: "/admin/manufacturers", label: "Manufacturers", icon: Factory },
   { href: "/admin/categories", label: "Categories", icon: FolderTree },
   { href: "/admin/import", label: "Import", icon: Upload },
   { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
@@ -90,6 +93,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </header>
         <main className="flex-1 overflow-x-auto p-4 lg:p-6">{children}</main>
       </div>
+      <Toaster richColors position="top-right" />
     </div>
   );
 }

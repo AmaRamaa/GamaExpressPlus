@@ -8,6 +8,7 @@ import { useAdminStore } from "@/lib/admin-store";
 export default function AdminLoginPage() {
   const router = useRouter();
   const login = useAdminStore((s) => s.login);
+  const devLogin = useAdminStore((s) => s.devLogin);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -67,6 +68,19 @@ export default function AdminLoginPage() {
             {loading ? "Signing in…" : "Sign in"}
           </button>
         </form>
+
+        {process.env.NODE_ENV !== "production" && (
+          <button
+            type="button"
+            onClick={() => {
+              devLogin();
+              router.push("/admin");
+            }}
+            className="mt-3 w-full rounded-lg border border-white/10 py-2.5 text-sm font-medium text-slate-300 transition-colors hover:bg-white/5"
+          >
+            View demo dashboard (no backend/DB needed)
+          </button>
+        )}
       </div>
     </div>
   );

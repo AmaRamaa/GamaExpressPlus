@@ -2,18 +2,16 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "frontend-dev",
+      "name": "backend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000,
-      "cwd": "frontend"
+      "runtimeArgs": ["--prefix", "backend", "run", "dev", "--", "--host", "0.0.0.0"],
+      "port": 4000
     },
     {
-      "name": "backend-dev",
+      "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 4000,
-      "cwd": "backend"
+      "runtimeArgs": ["--prefix", "frontend", "run", "dev", "--", "-H", "0.0.0.0"],
+      "port": 3000
     }
   ]
 }

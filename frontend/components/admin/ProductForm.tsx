@@ -2,13 +2,20 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { EntityCombobox, type EntityOption } from "./EntityCombobox";
+import { ImageUploader, type ProductImageItem } from "./ImageUploader";
 
-interface Brand { id: string; name: string }
-interface Category { id: string; name: string }
-interface ImageRow { url: string; altText: string }
+function slugify(name: string) {
+  return name.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
 
 export interface ProductFormValues {
   id?: string;
@@ -19,6 +26,7 @@ export interface ProductFormValues {
   description: string;
   categoryId: string;
   brandId: string;
+  manufacturerId: string;
   partNumber: string;
   manufacturerNumber: string;
   oemNumbers: string;
@@ -28,7 +36,7 @@ export interface ProductFormValues {
   lowStockThreshold: string;
   isFeatured: boolean;
   isActive: boolean;
-  images: ImageRow[];
+  images: ProductImageItem[];
 }
 
 const EMPTY: ProductFormValues = {
@@ -39,6 +47,7 @@ const EMPTY: ProductFormValues = {
   description: "",
   categoryId: "",
   brandId: "",
+  manufacturerId: "",
   partNumber: "",
   manufacturerNumber: "",
   oemNumbers: "",
@@ -51,32 +60,36 @@ const EMPTY: ProductFormValues = {
   images: [],
 };
 
-const inputClass =
-  "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-red";
-const labelClass = "mb-1 block text-xs font-medium text-ink-soft";
-
 export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> }) {
   const router = useRouter();
   const token = useAdminStore((s) => s.token);
   const [values, setValues] = useState<ProductFormValues>({ ...EMPTY, ...initial });
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<EntityOption[]>([]);
+  const [categories, setCategories] = useState<EntityOption[]>([]);
+  const [manufacturers, setManufacturers] = useState<EntityOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const isEdit = !!values.id;
 
   useEffect(() => {
-    api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
-    api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
+    api.get<EntityOption[]>("/catalog/brands").then(setBrands).catch(() => {});
+    api.get<EntityOption[]>("/catalog/categories").then(setCategories).catch(() => {});
+    api.get<EntityOption[]>("/catalog/manufacturers").then(setManufacturers).catch(() => {});
   }, []);
 
   function set<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
-  function slugify(s: string) {
-    return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  async function createBrand(name: string): Promise<EntityOption> {
+    return api.post<EntityOption>("/catalog/brands", { name, slug: slugify(name) }, token);
+  }
+  async function createCategory(name: string): Promise<EntityOption> {
+    return api.post<EntityOption>("/catalog/categories", { name, slug: slugify(name) }, token);
+  }
+  async function createManufacturer(name: string): Promise<EntityOption> {
+    return api.post<EntityOption>("/catalog/manufacturers", { name, slug: slugify(name) }, token);
   }
 
   async function handleSubmit(e: FormEvent) {
@@ -108,6 +121,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       description: values.description.trim() || undefined,
       categoryId: values.categoryId,
       brandId: values.brandId,
+      manufacturerId: values.manufacturerId || null,
       partNumber: values.partNumber.trim(),
       manufacturerNumber: values.manufacturerNumber.trim() || undefined,
       oemNumbers: values.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean),
@@ -121,7 +135,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       images: {
         create: values.images
           .filter((img) => img.url.trim())
-          .map((img, i) => ({ url: img.url.trim(), altText: img.altText.trim() || undefined, sortOrder: i })),
+          .map((img, i) => ({ url: img.url.trim(), altText: img.altText?.trim() || undefined, sortOrder: i })),
       },
     };
 
@@ -145,13 +159,14 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-sm font-semibold text-ink">Basic info</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <Card>
+        <CardHeader>
+          <CardTitle>Basic info</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Title *</label>
-            <input
-              className={inputClass}
+            <Label>Title *</Label>
+            <Input
               value={values.title}
               onChange={(e) => {
                 set("title", e.target.value);
@@ -161,148 +176,135 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             />
           </div>
           <div>
-            <label className={labelClass}>Slug</label>
-            <input className={inputClass} value={values.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated from title" />
+            <Label>Slug</Label>
+            <Input value={values.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated from title" />
           </div>
           <div>
-            <label className={labelClass}>SKU *</label>
-            <input className={inputClass} value={values.sku} onChange={(e) => set("sku", e.target.value)} required />
+            <Label>SKU *</Label>
+            <Input value={values.sku} onChange={(e) => set("sku", e.target.value)} required />
           </div>
           <div>
-            <label className={labelClass}>Part number *</label>
-            <input className={inputClass} value={values.partNumber} onChange={(e) => set("partNumber", e.target.value)} required />
+            <Label>Part number *</Label>
+            <Input value={values.partNumber} onChange={(e) => set("partNumber", e.target.value)} required />
           </div>
           <div>
-            <label className={labelClass}>Manufacturer number</label>
-            <input className={inputClass} value={values.manufacturerNumber} onChange={(e) => set("manufacturerNumber", e.target.value)} />
+            <Label>Manufacturer part number</Label>
+            <Input value={values.manufacturerNumber} onChange={(e) => set("manufacturerNumber", e.target.value)} />
           </div>
           <div>
-            <label className={labelClass}>OEM numbers (comma-separated)</label>
-            <input className={inputClass} value={values.oemNumbers} onChange={(e) => set("oemNumbers", e.target.value)} />
+            <Label>OEM numbers (comma-separated)</Label>
+            <Input value={values.oemNumbers} onChange={(e) => set("oemNumbers", e.target.value)} />
           </div>
           <div>
-            <label className={labelClass}>Brand *</label>
-            <select className={inputClass} value={values.brandId} onChange={(e) => set("brandId", e.target.value)} required>
-              <option value="">Select brand</option>
-              {brands.map((b) => (
-                <option key={b.id} value={b.id}>{b.name}</option>
-              ))}
-            </select>
+            <Label>Brand *</Label>
+            <EntityCombobox
+              value={values.brandId}
+              onChange={(id) => set("brandId", id)}
+              options={brands}
+              placeholder="Select brand"
+              onCreate={createBrand}
+            />
           </div>
           <div>
-            <label className={labelClass}>Category *</label>
-            <select className={inputClass} value={values.categoryId} onChange={(e) => set("categoryId", e.target.value)} required>
-              <option value="">Select category</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-sm font-semibold text-ink">Description</h2>
-        <div className="space-y-4">
-          <div>
-            <label className={labelClass}>Short description</label>
-            <input className={inputClass} value={values.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
+            <Label>Category *</Label>
+            <EntityCombobox
+              value={values.categoryId}
+              onChange={(id) => set("categoryId", id)}
+              options={categories}
+              placeholder="Select category"
+              onCreate={createCategory}
+            />
           </div>
           <div>
-            <label className={labelClass}>Full description</label>
-            <textarea className={`${inputClass} min-h-28`} value={values.description} onChange={(e) => set("description", e.target.value)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
-        <h2 className="mb-4 font-display text-sm font-semibold text-ink">Pricing & stock</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <label className={labelClass}>Price (EUR) *</label>
-            <input type="number" step="0.01" min="0" className={inputClass} value={values.priceEur} onChange={(e) => set("priceEur", e.target.value)} required />
-          </div>
-          <div>
-            <label className={labelClass}>Discount price (EUR)</label>
-            <input type="number" step="0.01" min="0" className={inputClass} value={values.discountPriceEur} onChange={(e) => set("discountPriceEur", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Stock quantity</label>
-            <input type="number" min="0" className={inputClass} value={values.stockQuantity} onChange={(e) => set("stockQuantity", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Low stock threshold</label>
-            <input type="number" min="0" className={inputClass} value={values.lowStockThreshold} onChange={(e) => set("lowStockThreshold", e.target.value)} />
-          </div>
-        </div>
-        <div className="mt-4 flex gap-6">
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={values.isFeatured} onChange={(e) => set("isFeatured", e.target.checked)} />
-            Featured
-          </label>
-          <label className="flex items-center gap-2 text-sm text-ink">
-            <input type="checkbox" checked={values.isActive} onChange={(e) => set("isActive", e.target.checked)} />
-            Active (visible on storefront)
-          </label>
-        </div>
-      </div>
-
-      {!isEdit && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-sm font-semibold text-ink">Images</h2>
-            <button
-              type="button"
-              onClick={() => set("images", [...values.images, { url: "", altText: "" }])}
-              className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-ink-soft hover:bg-slate-50"
-            >
-              <Plus size={14} /> Add image
-            </button>
-          </div>
-          <div className="space-y-2">
-            {values.images.map((img, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  className={inputClass}
-                  placeholder="Image URL"
-                  value={img.url}
-                  onChange={(e) => {
-                    const next = [...values.images];
-                    next[i] = { ...next[i], url: e.target.value };
-                    set("images", next);
-                  }}
+            <Label>Manufacturer</Label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1">
+                <EntityCombobox
+                  value={values.manufacturerId}
+                  onChange={(id) => set("manufacturerId", id)}
+                  options={manufacturers}
+                  placeholder="Select manufacturer (optional)"
+                  onCreate={createManufacturer}
                 />
-                <input
-                  className={inputClass}
-                  placeholder="Alt text"
-                  value={img.altText}
-                  onChange={(e) => {
-                    const next = [...values.images];
-                    next[i] = { ...next[i], altText: e.target.value };
-                    set("images", next);
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => set("images", values.images.filter((_, idx) => idx !== i))}
-                  className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
               </div>
-            ))}
-            {values.images.length === 0 && <p className="text-sm text-ink-soft">No images added yet.</p>}
+              {values.manufacturerId && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => set("manufacturerId", "")}>
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Description</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label>Short description</Label>
+            <Input value={values.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} />
+          </div>
+          <div>
+            <Label>Full description</Label>
+            <Textarea value={values.description} onChange={(e) => set("description", e.target.value)} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pricing & stock</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <Label>Price (EUR) *</Label>
+              <Input type="number" step="0.01" min="0" value={values.priceEur} onChange={(e) => set("priceEur", e.target.value)} required />
+            </div>
+            <div>
+              <Label>Discount price (EUR)</Label>
+              <Input type="number" step="0.01" min="0" value={values.discountPriceEur} onChange={(e) => set("discountPriceEur", e.target.value)} />
+            </div>
+            <div>
+              <Label>Stock quantity</Label>
+              <Input type="number" min="0" value={values.stockQuantity} onChange={(e) => set("stockQuantity", e.target.value)} />
+            </div>
+            <div>
+              <Label>Low stock threshold</Label>
+              <Input type="number" min="0" value={values.lowStockThreshold} onChange={(e) => set("lowStockThreshold", e.target.value)} />
+            </div>
+          </div>
+          <div className="mt-4 flex gap-6">
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <Checkbox checked={values.isFeatured} onCheckedChange={(v) => set("isFeatured", v === true)} />
+              Featured
+            </label>
+            <label className="flex items-center gap-2 text-sm text-ink">
+              <Checkbox checked={values.isActive} onCheckedChange={(v) => set("isActive", v === true)} />
+              Active (visible on storefront)
+            </label>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Images</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ImageUploader images={values.images} onChange={(images) => set("images", images)} token={token} productId={values.id} />
+        </CardContent>
+      </Card>
 
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => router.push("/admin/products")} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
+        <Button type="button" variant="secondary" onClick={() => router.push("/admin/products")}>
           Cancel
-        </button>
-        <button type="submit" disabled={saving} className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60">
+        </Button>
+        <Button type="submit" disabled={saving}>
           {saving ? "Saving…" : isEdit ? "Save changes" : "Create product"}
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -14,8 +14,9 @@ interface ProductRow {
   stockQuantity: number;
   stockStatus: string;
   isActive: boolean;
-  brand: { name: string };
-  category: { name: string };
+  brand: { id: string; name: string };
+  category: { id: string; name: string };
+  manufacturer: { id: string; name: string } | null;
 }
 
 interface ListResponse {
@@ -89,6 +90,7 @@ export default function AdminProductsPage() {
               <th className="px-4 py-2.5 font-medium">SKU</th>
               <th className="px-4 py-2.5 font-medium">Brand</th>
               <th className="px-4 py-2.5 font-medium">Category</th>
+              <th className="px-4 py-2.5 font-medium">Manufacturer</th>
               <th className="px-4 py-2.5 font-medium text-right">Price</th>
               <th className="px-4 py-2.5 font-medium text-right">Stock</th>
               <th className="px-4 py-2.5 font-medium">Status</th>
@@ -100,8 +102,29 @@ export default function AdminProductsPage() {
               <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
                 <td className="px-4 py-2.5 font-medium text-ink">{p.title}</td>
                 <td className="part-code px-4 py-2.5 text-ink-soft">{p.sku}</td>
-                <td className="px-4 py-2.5 text-ink-soft">{p.brand?.name}</td>
-                <td className="px-4 py-2.5 text-ink-soft">{p.category?.name}</td>
+                <td className="px-4 py-2.5 text-ink-soft">
+                  {p.brand && (
+                    <Link href={`/admin/brands/${p.brand.id}`} className="hover:text-brand-red hover:underline">
+                      {p.brand.name}
+                    </Link>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-ink-soft">
+                  {p.category && (
+                    <Link href={`/admin/categories/${p.category.id}`} className="hover:text-brand-red hover:underline">
+                      {p.category.name}
+                    </Link>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-ink-soft">
+                  {p.manufacturer ? (
+                    <Link href={`/admin/manufacturers/${p.manufacturer.id}`} className="hover:text-brand-red hover:underline">
+                      {p.manufacturer.name}
+                    </Link>
+                  ) : (
+                    <span className="text-slate-300">—</span>
+                  )}
+                </td>
                 <td className="px-4 py-2.5 text-right font-medium text-ink">€{p.priceEur.toFixed(2)}</td>
                 <td className="px-4 py-2.5 text-right text-ink-soft">{p.stockQuantity}</td>
                 <td className="px-4 py-2.5">
@@ -123,7 +146,7 @@ export default function AdminProductsPage() {
             ))}
             {data && data.items.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">No products found.</td>
+                <td colSpan={9} className="px-4 py-8 text-center text-ink-soft">No products found.</td>
               </tr>
             )}
           </tbody>

@@ -19,6 +19,7 @@ const productWriteSchema = z.object({
   installationNotes: z.string().optional(),
   categoryId: z.string().min(1),
   brandId: z.string().min(1),
+  manufacturerId: z.string().nullable().optional(),
   oemNumbers: z.array(z.string()).optional().default([]),
   partNumber: z.string().min(1),
   manufacturerNumber: z.string().optional(),
@@ -120,6 +121,7 @@ router.get("/:slug", async (req, res) => {
       images: { orderBy: { sortOrder: "asc" } },
       brand: true,
       category: true,
+      manufacturer: true,
       compatibility: { include: { engine: { include: { generation: { include: { model: { include: { make: true } } } } } } } },
       reviews: { where: { status: "APPROVED" }, include: { user: { select: { firstName: true, lastName: true } } } },
       relatedTo: { include: { relatedProduct: { include: { images: { take: 1 } } } } },
@@ -160,6 +162,56 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req:
 
 router.delete("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req: AuthedRequest, res) => {
   await prisma.product.update({ where: { id: req.params.id }, data: { isActive: false } });
+  res.status(204).send();
+});
+
+// Product image management — separate from the main product write so the
+// admin UI can add/remove/reorder images on an existing product without
+// resending the whole product payload.
+const imageWriteSchema = z.object({
+  url: z.string().min(1),
+  altText: z.string().optional(),
+});
+
+router.post("/:id/images", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const parsed = imageWriteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const maxSort = await prisma.productImage.aggregate({
+    where: { productId: req.params.id },
+    _max: { sortOrder: true },
+  });
+
+  const image = await prisma.productImage.create({
+    data: {
+      productId: req.params.id,
+      url: parsed.data.url,
+      altText: parsed.data.altText,
+      sortOrder: (maxSort._max.sortOrder ?? -1) + 1,
+    },
+  });
+  res.status(201).json(image);
+});
+
+router.delete("/:id/images/:imageId", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  await prisma.productImage.deleteMany({ where: { id: req.params.imageId, productId: req.params.id } });
+  res.status(204).send();
+});
+
+const reorderSchema = z.object({ order: z.array(z.string().min(1)) });
+
+router.patch("/:id/images/reorder", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const parsed = reorderSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  await prisma.$transaction(
+    parsed.data.order.map((imageId, index) =>
+      prisma.productImage.updateMany({
+        where: { id: imageId, productId: req.params.id },
+        data: { sortOrder: index },
+      })
+    )
+  );
   res.status(204).send();
 });
 

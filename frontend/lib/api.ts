@@ -2,7 +2,7 @@
 // from pasting this into a hosting dashboard's env var field silently turns
 // "https://api.example.com/api" into an unparsable fetch input, which
 // surfaces as an opaque "Failed to parse URL" far from the actual cause.
-const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").trim().replace(/\/+$/, "");
+export const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").trim().replace(/\/+$/, "");
 
 export class ApiError extends Error {
   status: number;

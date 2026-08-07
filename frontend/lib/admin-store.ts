@@ -24,6 +24,8 @@ interface AdminStoreState {
   user: AdminUser | null;
   login: (email: string, password: string) => Promise<{ ok: boolean; error?: string }>;
   logout: () => void;
+  /** Local-dev-only: view the dashboard UI without a real backend/DB. */
+  devLogin: () => void;
 }
 
 const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN"];
@@ -49,6 +51,13 @@ export const useAdminStore = create<AdminStoreState>()(
       },
 
       logout: () => set({ token: null, refreshToken: null, user: null }),
+
+      devLogin: () =>
+        set({
+          token: "dev-fake-token",
+          refreshToken: "dev-fake-refresh",
+          user: { id: "dev", email: "admin@gamaexpress.com", firstName: "Admin", lastName: "User", role: "SUPER_ADMIN" },
+        }),
     }),
     { name: "gama-express-admin-store" }
   )

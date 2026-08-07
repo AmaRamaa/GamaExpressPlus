@@ -1,4 +1,10 @@
 import "dotenv/config";
+// Must be imported before any route files (which call Router()) — it patches
+// Express's router methods so a rejected promise in an async handler is
+// forwarded to the error middleware instead of becoming an unhandled
+// rejection that leaves the request hanging (or, without a rejection
+// handler, crashes the process).
+import "express-async-errors";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -20,6 +26,16 @@ import contentRoutes from "./routes/content";
 import adminRoutes from "./routes/admin";
 import uploadRoutes from "./routes/uploads";
 import { prisma } from "./lib/prisma";
+
+// Route handlers here are async functions without try/catch; a rejected
+// promise (e.g. the DB being unreachable) becomes an unhandled rejection,
+// which crashes the whole process by default on modern Node instead of
+// just failing that one request. Logging instead of exiting keeps the
+// server up so unrelated requests (and pages that don't hit the DB) keep
+// working even while the database is down.
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled rejection:", reason);
+});
 
 const app = express();
 const PORT = process.env.PORT || 4000;

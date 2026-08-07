@@ -98,16 +98,28 @@ router.patch("/inventory/:productId/stock", async (req, res) => {
 
 // Products — admin listing includes inactive items and supports search
 router.get("/products", async (req, res) => {
-  const { q, page = "1", limit = "24" } = req.query as Record<string, string>;
-  const where: any = q
-    ? {
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { sku: { contains: q, mode: "insensitive" } },
-          { partNumber: { contains: q, mode: "insensitive" } },
-        ],
-      }
-    : {};
+  const { q, page = "1", limit = "24", brandId, categoryId, manufacturerId } = req.query as Record<string, string>;
+
+  let categoryFilter: any = undefined;
+  if (categoryId) {
+    const children = await prisma.category.findMany({ where: { parentId: categoryId }, select: { id: true } });
+    categoryFilter = children.length > 0 ? { in: [categoryId, ...children.map((c) => c.id)] } : categoryId;
+  }
+
+  const where: any = {
+    ...(q
+      ? {
+          OR: [
+            { title: { contains: q, mode: "insensitive" } },
+            { sku: { contains: q, mode: "insensitive" } },
+            { partNumber: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : {}),
+    ...(brandId ? { brandId } : {}),
+    ...(categoryFilter ? { categoryId: categoryFilter } : {}),
+    ...(manufacturerId ? { manufacturerId } : {}),
+  };
 
   const take = Math.min(Number(limit) || 24, 100);
   const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
@@ -118,7 +130,7 @@ router.get("/products", async (req, res) => {
       orderBy: { createdAt: "desc" },
       take,
       skip,
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, brand: true, category: true },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, brand: true, category: true, manufacturer: true },
     }),
     prisma.product.count({ where }),
   ]);
@@ -129,7 +141,7 @@ router.get("/products", async (req, res) => {
 router.get("/products/:id", async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, brand: true, category: true },
+    include: { images: { orderBy: { sortOrder: "asc" } }, brand: true, category: true, manufacturer: true },
   });
   if (!product) return res.status(404).json({ error: "Product not found" });
   res.json(product);

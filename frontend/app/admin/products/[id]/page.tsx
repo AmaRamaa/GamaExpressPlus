@@ -25,6 +25,7 @@ export default function EditProductPage() {
           description: p.description || "",
           categoryId: p.categoryId,
           brandId: p.brandId,
+          manufacturerId: p.manufacturerId || "",
           partNumber: p.partNumber,
           manufacturerNumber: p.manufacturerNumber || "",
           oemNumbers: (p.oemNumbers || []).join(", "),
@@ -34,7 +35,7 @@ export default function EditProductPage() {
           lowStockThreshold: String(p.lowStockThreshold),
           isFeatured: p.isFeatured,
           isActive: p.isActive,
-          images: [],
+          images: (p.images || []).map((img: any) => ({ id: img.id, url: img.url, altText: img.altText || "" })),
         })
       )
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load product"));
