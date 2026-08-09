@@ -81,11 +81,11 @@ export default async function HomePage() {
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b border-surface-border bg-gradient-to-br from-ink via-ink to-brand-red-dark">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.06]" preserveAspectRatio="xMidYMid slice">
+      <section className="relative overflow-hidden border-b border-surface-border bg-gradient-to-b from-surface-muted to-surface">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-[0.05]" preserveAspectRatio="xMidYMid slice">
           <defs>
             <pattern id="hero-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M40 0H0V40" fill="none" stroke="#FFFFFF" strokeWidth="1" />
+              <path d="M40 0H0V40" fill="none" stroke="#1F2937" strokeWidth="1" />
             </pattern>
           </defs>
           <rect width="100%" height="100%" fill="url(#hero-grid)" />
@@ -93,30 +93,29 @@ export default async function HomePage() {
         {/* Repeating logo watermark */}
         <div
           className="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: "url(/emblem-white.png)", backgroundSize: "110px auto", backgroundRepeat: "repeat" }}
+          style={{ backgroundImage: "url(/emblem-red.png)", backgroundSize: "110px auto", backgroundRepeat: "repeat" }}
           aria-hidden
         />
         <Image
-          src="/emblem-white.png"
+          src="/emblem-red.png"
           alt=""
           width={900}
           height={945}
           aria-hidden
-          className="pointer-events-none absolute -right-24 top-1/2 hidden w-[440px] -translate-y-1/2 opacity-[0.10] lg:block"
+          className="pointer-events-none absolute -right-24 top-1/2 hidden w-[440px] -translate-y-1/2 opacity-[0.06] lg:block"
         />
-        <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-brand-red/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-32 left-1/3 h-[360px] w-[360px] rounded-full bg-white/[0.06] blur-3xl" />
+        <div className="pointer-events-none absolute -right-24 -top-24 h-[420px] w-[420px] rounded-full bg-brand-red/10 blur-3xl" />
 
         <div className="container-page relative grid gap-10 py-10 lg:grid-cols-[1.1fr_0.9fr] lg:py-14">
           <div className="flex flex-col justify-center">
-            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-brand-red px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white shadow-lifted">
-              <Image src="/emblem-white.png" alt="" width={900} height={945} className="h-3.5 w-auto" />
+            <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full bg-brand-red-light px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red">
+              <Image src="/emblem-red.png" alt="" width={900} height={945} className="h-3.5 w-auto" />
               Gama Express &middot; Kosovo's exterior parts catalog
             </span>
-            <h1 className="font-display text-4xl font-bold leading-[1.05] text-white sm:text-5xl lg:text-6xl">
-              The right body part,<br />matched to your <span className="text-brand-red-light">exact vehicle.</span>
+            <h1 className="font-display text-4xl font-bold leading-[1.05] text-ink sm:text-5xl lg:text-6xl">
+              The right body part,<br />matched to your <span className="text-brand-red">exact vehicle.</span>
             </h1>
-            <p className="mt-5 max-w-lg text-base text-white/70">
+            <p className="mt-5 max-w-lg text-base text-ink-soft">
               Search by OEM number, or your vehicle's manufacturer, model, and year. Thousands of genuine and
               aftermarket bumpers, lights, mirrors, glass, and trim, verified for fitment before they ship.
             </p>
@@ -124,7 +123,7 @@ export default async function HomePage() {
               <Link href="/products" className="rounded-lg bg-brand-red px-5 py-3 text-sm font-semibold text-white shadow-lifted hover:bg-brand-red-dark">
                 Browse all parts
               </Link>
-              <Link href="/vehicle-finder" className="rounded-lg border border-white/25 bg-white/5 px-5 py-3 text-sm font-semibold text-white backdrop-blur hover:border-white hover:bg-white/10">
+              <Link href="/vehicle-finder" className="rounded-lg border border-surface-border bg-surface px-5 py-3 text-sm font-semibold text-ink hover:border-brand-red hover:text-brand-red">
                 Open Vehicle Finder
               </Link>
             </div>
