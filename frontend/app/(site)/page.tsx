@@ -90,12 +90,6 @@ export default async function HomePage() {
           </defs>
           <rect width="100%" height="100%" fill="url(#hero-grid)" />
         </svg>
-        {/* Repeating logo watermark */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-[0.05]"
-          style={{ backgroundImage: "url(/emblem-red.png)", backgroundSize: "110px auto", backgroundRepeat: "repeat" }}
-          aria-hidden
-        />
         <Image
           src="/emblem-red.png"
           alt=""
