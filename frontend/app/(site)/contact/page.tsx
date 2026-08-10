@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { Mail, Phone, Clock, MapPin } from "lucide-react";
+import { SITE_PHONE_PRIMARY, SITE_PHONE_SECONDARY, SITE_EMAIL, SITE_LOCATIONS } from "@/lib/constants";
 
 const info = [
-  { icon: MapPin, label: "Rr. Bill Clinton, Prishtinë, Kosovë" },
-  { icon: Phone, label: "+383 44 000 000" },
-  { icon: Mail, label: "hello@gamaexpress.com" },
+  { icon: Phone, label: `${SITE_PHONE_PRIMARY} · ${SITE_PHONE_SECONDARY}` },
+  { icon: Mail, label: SITE_EMAIL },
   { icon: Clock, label: "Mon–Sat, 08:00–18:00" },
 ];
 
@@ -29,6 +29,18 @@ export default function ContactPage() {
               <i.icon size={18} className="mt-0.5 shrink-0 text-brand-red" />
               <p className="text-sm text-ink-soft">{i.label}</p>
             </div>
+          ))}
+          {SITE_LOCATIONS.map((loc) => (
+            <a
+              key={loc.label}
+              href={loc.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-3 text-sm text-ink-soft hover:text-brand-red"
+            >
+              <MapPin size={18} className="shrink-0 text-brand-red" />
+              {loc.label} — Get directions
+            </a>
           ))}
         </div>
 

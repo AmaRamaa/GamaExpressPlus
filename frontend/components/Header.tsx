@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Heart, ShoppingCart, User, MapPin, Phone } from "lucide-react";
+import { Heart, ShoppingCart, User } from "lucide-react";
 import SearchBar from "./SearchBar";
 import MegaMenu from "./MegaMenu";
+import MobileNav from "./MobileNav";
 import LanguageSwitcher from "./LanguageSwitcher";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/i18n";
@@ -17,24 +18,9 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-surface-border bg-surface">
-      {/* Utility bar */}
-      <div className="hidden bg-ink text-ink-soft sm:block">
-        <div className="container-page flex items-center justify-between py-1.5 text-xs text-white/80">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1"><MapPin size={12} /> {t.header.location}</span>
-            <span className="flex items-center gap-1"><Phone size={12} /> +383 44 000 000</span>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/vehicle-finder" className="hover:text-white">{t.header.vehicleFinder}</Link>
-            <Link href="/business" className="hover:text-white">{t.header.businessAccounts}</Link>
-            <Link href="/account?tab=orders" className="hover:text-white">{t.header.trackOrder}</Link>
-            <LanguageSwitcher />
-          </div>
-        </div>
-      </div>
-
       {/* Main header */}
-      <div className="container-page flex items-center gap-6 py-4">
+      <div className="container-page flex items-center gap-3 py-4 lg:gap-6">
+        <MobileNav />
         <Link href="/" className="flex shrink-0 items-center">
           <Image
             src="/logo.jpg"
@@ -42,7 +28,7 @@ export default function Header() {
             width={1707}
             height={740}
             priority
-            className="h-14 w-auto object-contain sm:h-16"
+            className="h-16 w-auto object-contain sm:h-20"
           />
         </Link>
 
@@ -51,6 +37,7 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-1">
+          <LanguageSwitcher />
           <Link href={user ? "/account" : "/login"} className="flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
             <User size={20} className={user ? "text-brand-red" : "text-ink"} />
             <span className="hidden text-[11px] text-ink-soft sm:block">{user ? user.name.split(" ")[0] : t.header.signIn}</span>

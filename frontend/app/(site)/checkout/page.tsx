@@ -6,10 +6,11 @@ import { Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
 import { SignInForPrice } from "@/components/ui-bits";
+import { SITE_PHONE_PRIMARY, SITE_PHONE_PRIMARY_TEL, SITE_WHATSAPP_URL } from "@/lib/constants";
 
-const PHONE_DISPLAY = "+383 44 000 000";
-const PHONE_TEL = "+38344000000";
-const WHATSAPP_URL = "https://wa.me/38344000000";
+const PHONE_DISPLAY = SITE_PHONE_PRIMARY;
+const PHONE_TEL = SITE_PHONE_PRIMARY_TEL;
+const WHATSAPP_URL = SITE_WHATSAPP_URL;
 
 export default function CheckoutPage() {
   const cart = useStore((s) => s.cart);
