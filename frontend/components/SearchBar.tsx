@@ -7,7 +7,7 @@ import { Search, Clock, TrendingUp } from "lucide-react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
-import { PartCode, SignInForPrice } from "./ui-bits";
+import { PartCode, CallForQuote } from "./ui-bits";
 
 interface SuggestedProduct {
   id: string;
@@ -97,7 +97,7 @@ export default function SearchBar() {
                         €{getEffectivePrice({ priceEur: p.priceEur, discountPriceEur: p.discountPriceEur ?? undefined } as any, user).finalPrice.toFixed(2)}
                       </span>
                     ) : (
-                      <SignInForPrice size="xs" />
+                      <CallForQuote size="xs" />
                     )}
                   </Link>
                 </li>

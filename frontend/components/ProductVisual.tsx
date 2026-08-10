@@ -1,36 +1,81 @@
 "use client";
 
-import {
-  CarFront, Lightbulb, Frame, PanelTop, Package, LucideIcon,
-} from "lucide-react";
+import { useState } from "react";
+import Image from "next/image";
+import { ZoomIn, X } from "lucide-react";
 
 interface VisualConfig {
-  icon: LucideIcon;
   from: string;
   to: string;
 }
 
 const visuals: Record<string, VisualConfig> = {
-  "bumpers-body-panels": { icon: CarFront, from: "#B30000", to: "#3A1212" },
-  "lighting": { icon: Lightbulb, from: "#CA8A04", to: "#422006" },
-  "mirrors-glass": { icon: Frame, from: "#0369A1", to: "#082F49" },
-  "trim-grilles": { icon: PanelTop, from: "#334155", to: "#0F172A" },
+  "bumpers-body-panels": { from: "#B30000", to: "#3A1212" },
+  "lighting": { from: "#CA8A04", to: "#422006" },
+  "mirrors-glass": { from: "#0369A1", to: "#082F49" },
+  "trim-grilles": { from: "#334155", to: "#0F172A" },
 };
 
-const fallback: VisualConfig = { icon: Package, from: "#4B5563", to: "#1F2937" };
+const fallback: VisualConfig = { from: "#4B5563", to: "#1F2937" };
 
 export default function ProductVisual({
   categorySlug,
+  imageUrl,
   variant = "primary",
   className = "",
 }: {
   categorySlug: string;
+  imageUrl?: string;
   variant?: "primary" | "secondary";
   className?: string;
 }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const cfg = visuals[categorySlug] || fallback;
-  const Icon = cfg.icon;
   const gradId = `grad-${categorySlug}-${variant}`;
+
+  if (imageUrl) {
+    return (
+      <>
+        <div className={`group/visual relative h-full w-full overflow-hidden ${className}`}>
+          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setLightboxOpen(true);
+            }}
+            aria-label="Zoom image"
+            className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full bg-white/90 text-ink opacity-0 shadow-soft transition-opacity group-hover/visual:opacity-100"
+          >
+            <ZoomIn size={16} />
+          </button>
+        </div>
+
+        {lightboxOpen && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-ink/80 p-6"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              aria-label="Close"
+              className="absolute right-5 top-5 rounded-full bg-white/10 p-2 text-white hover:bg-white/20"
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={imageUrl}
+              alt=""
+              className="max-h-full max-w-full rounded-lg object-contain"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
 
   return (
     <div
@@ -50,10 +95,13 @@ export default function ProductVisual({
       {/* red accent corner */}
       <div className="absolute -right-8 -top-8 h-24 w-24 rotate-45 bg-white/10" />
 
-      <Icon
-        size={variant === "primary" ? 88 : 64}
-        strokeWidth={1.25}
-        className="relative text-white/90"
+      <Image
+        src="/emblem-white.png"
+        alt=""
+        width={900}
+        height={945}
+        className="relative opacity-90"
+        style={{ width: variant === "primary" ? 72 : 52, height: "auto" }}
       />
     </div>
   );

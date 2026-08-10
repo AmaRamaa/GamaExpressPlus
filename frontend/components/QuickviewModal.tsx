@@ -4,7 +4,7 @@ import { X, ShoppingCart, Heart } from "lucide-react";
 import Link from "next/link";
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { PartCode, StarRating, StockBadge } from "./ui-bits";
+import { PartCode, StockBadge } from "./ui-bits";
 import ProductVisual from "./ProductVisual";
 import ProductPrice from "./ProductPrice";
 
@@ -31,14 +31,13 @@ export default function QuickviewModal({ product, onClose }: { product: Product;
         </button>
 
         <div className="aspect-square overflow-hidden rounded-lg">
-          <ProductVisual categorySlug={product.categorySlug} />
+          <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} />
         </div>
 
         <div className="flex flex-col">
           <span className="text-xs font-semibold uppercase tracking-wide text-brand-red">{product.brand.name}</span>
           <h3 className="mt-1 font-display text-xl font-bold text-ink">{product.title}</h3>
-          <div className="mt-2"><StarRating rating={product.rating} count={product.reviewCount} /></div>
-          <div className="mt-3"><PartCode label="Part No.">{product.partNumber}</PartCode></div>
+          <div className="mt-2"><PartCode label="Part No.">{product.partNumber}</PartCode></div>
           <p className="mt-3 text-sm text-ink-soft">{product.shortDescription}</p>
 
           <div className="mt-4 flex items-center justify-between">

@@ -30,6 +30,7 @@ export function mapProduct(raw: any): Product {
     reviewCount: raw.reviewCount ?? 0,
     compatibleEngineIds: (raw.compatibility || []).map((c: any) => c.engineId ?? c.engine?.id).filter(Boolean),
     isFeatured: raw.isFeatured,
+    imageUrl: raw.images?.[0]?.url || undefined,
   };
 }
 

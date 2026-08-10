@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Minus, Plus, Trash2, Tag } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
-import { PartCode, SignInForPrice } from "@/components/ui-bits";
+import { PartCode, CallForQuote } from "@/components/ui-bits";
 import ProductVisual from "@/components/ProductVisual";
 
 export default function CartPage() {
@@ -40,7 +40,7 @@ export default function CartPage() {
           {cart.map((line) => (
             <div key={line.product.id} className="flex gap-4 rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
               <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg">
-                <ProductVisual categorySlug={line.product.categorySlug} variant="secondary" />
+                <ProductVisual categorySlug={line.product.categorySlug} imageUrl={line.product.imageUrl} variant="secondary" />
               </div>
               <div className="flex-1">
                 <Link href={`/products/${line.product.slug}`} className="font-medium text-ink hover:text-brand-red">
@@ -58,7 +58,7 @@ export default function CartPage() {
                       €{(getEffectivePrice(line.product, user).finalPrice * line.quantity).toFixed(2)}
                     </span>
                   ) : (
-                    <SignInForPrice />
+                    <CallForQuote />
                   )}
                 </div>
               </div>
@@ -110,7 +110,7 @@ export default function CartPage() {
             </>
           ) : (
             <div className="rounded-lg bg-surface-muted p-4 text-center text-sm">
-              <SignInForPrice />
+              <CallForQuote />
               <p className="mt-1.5 text-xs text-ink-soft">to see pricing and totals for these parts.</p>
             </div>
           )}

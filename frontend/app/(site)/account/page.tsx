@@ -170,7 +170,7 @@ function AccountPageContent() {
                 wishlistProducts.map((p) => (
                   <div key={p.id} className="rounded-xl border border-surface-border bg-surface p-3 shadow-soft">
                     <div className="relative mb-2 aspect-square overflow-hidden rounded-lg">
-                      <ProductVisual categorySlug={p.categorySlug} variant="secondary" />
+                      <ProductVisual categorySlug={p.categorySlug} imageUrl={p.imageUrl} variant="secondary" />
                     </div>
                     <Link href={`/products/${p.slug}`} className="line-clamp-2 text-sm font-medium text-ink hover:text-brand-red">{p.title}</Link>
                     <div className="mt-1"><ProductPrice product={p} /></div>

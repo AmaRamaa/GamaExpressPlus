@@ -31,8 +31,14 @@ const dict = {
       produced: "Prodhuar",
       yearNotCovered: "Ky vit nuk mbulohet për këtë model. Prodhuar",
     },
+    cookies: {
+      message:
+        "Ky sajt përdor ruajtje lokale (localStorage) për shportën, kyçjen dhe preferencën e gjuhës — jo për ndjekje reklamash.",
+      learnMore: "Mëso më shumë",
+      accept: "Kuptova",
+    },
     common: {
-      signInForPrice: "Kyçu për çmimin",
+      callForQuote: "Telefono për çmim",
       quickview: "Shikim i shpejtë",
       addToCart: "Shto në shportë",
       saveToFavorites: "Ruaj në të preferuarat",
@@ -109,8 +115,14 @@ const dict = {
       produced: "Produced",
       yearNotCovered: "That year isn't covered for this model. Produced",
     },
+    cookies: {
+      message:
+        "This site uses local storage for your cart, sign-in, and language preference — not for ad tracking.",
+      learnMore: "Learn more",
+      accept: "Got it",
+    },
     common: {
-      signInForPrice: "Sign in for price",
+      callForQuote: "Call for quote",
       quickview: "Quickview",
       addToCart: "Add to cart",
       saveToFavorites: "Save to favorites",

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
-import { SignInForPrice } from "@/components/ui-bits";
+import { CallForQuote } from "@/components/ui-bits";
 import { SITE_PHONE_PRIMARY, SITE_PHONE_PRIMARY_TEL, SITE_WHATSAPP_URL } from "@/lib/constants";
 
 const PHONE_DISPLAY = SITE_PHONE_PRIMARY;
@@ -98,7 +98,7 @@ export default function CheckoutPage() {
                     €{(getEffectivePrice(l.product, user).finalPrice * l.quantity).toFixed(2)}
                   </span>
                 ) : (
-                  <SignInForPrice size="xs" />
+                  <CallForQuote size="xs" />
                 )}
               </div>
             ))}

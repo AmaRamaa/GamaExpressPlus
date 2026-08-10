@@ -7,13 +7,13 @@ import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus } from "lucide-rea
 import { api, ApiError } from "@/lib/api";
 import { mapProduct } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
-import { PartCode, StarRating, StockBadge } from "@/components/ui-bits";
+import { PartCode, StockBadge } from "@/components/ui-bits";
 import ProductCard from "@/components/ProductCard";
 import ProductPrice from "@/components/ProductPrice";
 import ProductVisual from "@/components/ProductVisual";
 import type { Product } from "@/lib/types";
 
-const tabs = ["Overview", "Specifications", "Compatible vehicles", "Reviews"] as const;
+const tabs = ["Overview", "Specifications", "Compatible vehicles"] as const;
 
 export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -24,7 +24,6 @@ export default function ProductDetailPage() {
   const isWishlisted = useStore((s) => s.wishlist.includes(product?.id ?? ""));
   const [related, setRelated] = useState<Product[]>([]);
   const [notFound, setNotFound] = useState(false);
-  const [activeImage, setActiveImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
 
@@ -72,18 +71,7 @@ export default function ProductDetailPage() {
         {/* Gallery */}
         <div>
           <div className="relative mb-3 aspect-square overflow-hidden rounded-xl">
-            <ProductVisual categorySlug={product.categorySlug} variant={activeImage === 0 ? "primary" : "secondary"} />
-          </div>
-          <div className="flex gap-2">
-            {[0, 1].map((i) => (
-              <button
-                key={i}
-                onClick={() => setActiveImage(i)}
-                className={`relative h-16 w-16 overflow-hidden rounded-lg border-2 ${activeImage === i ? "border-brand-red" : "border-surface-border"}`}
-              >
-                <ProductVisual categorySlug={product.categorySlug} variant={i === 0 ? "primary" : "secondary"} />
-              </button>
-            ))}
+            <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} variant="primary" />
           </div>
         </div>
 
@@ -94,7 +82,6 @@ export default function ProductDetailPage() {
             <StockBadge status={product.stockStatus} />
           </div>
           <h1 className="mb-2 font-display text-3xl font-bold text-ink">{product.title}</h1>
-          <StarRating rating={product.rating} count={product.reviewCount} />
 
           <div className="my-4 flex flex-wrap gap-x-6 gap-y-2">
             <PartCode label="SKU">{product.sku}</PartCode>
@@ -197,11 +184,6 @@ export default function ProductDetailPage() {
             <Link href="/vehicle-finder" className="mt-3 inline-block text-sm font-medium text-brand-red hover:underline">
               Open Vehicle Finder →
             </Link>
-          </div>
-        )}
-        {tab === "Reviews" && (
-          <div className="max-w-2xl">
-            <p className="text-sm text-ink-soft">{product.reviewCount} verified customer reviews, averaging {product.rating.toFixed(1)} / 5.</p>
           </div>
         )}
       </div>

@@ -1,26 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Star, Lock } from "lucide-react";
+import { Phone } from "lucide-react";
 import clsx from "clsx";
 import { useT } from "@/lib/i18n";
-
-export function StarRating({ rating, count }: { rating: number; count?: number }) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <div className="flex items-center">
-        {[1, 2, 3, 4, 5].map((n) => (
-          <Star
-            key={n}
-            size={14}
-            className={n <= Math.round(rating) ? "fill-brand-red text-brand-red" : "fill-surface-border text-surface-border"}
-          />
-        ))}
-      </div>
-      {count !== undefined && <span className="text-xs text-ink-soft">({count})</span>}
-    </div>
-  );
-}
+import { SITE_PHONE_PRIMARY_TEL } from "@/lib/constants";
 
 export function PriceTag({ price, discountPrice, badge }: { price: number; discountPrice?: number; badge?: string }) {
   if (discountPrice && discountPrice < price) {
@@ -41,18 +25,18 @@ export function PriceTag({ price, discountPrice, badge }: { price: number; disco
   return <span className="text-xl font-semibold text-ink">€{price.toFixed(2)}</span>;
 }
 
-export function SignInForPrice({ size = "sm" }: { size?: "sm" | "xs" }) {
+export function CallForQuote({ size = "sm" }: { size?: "sm" | "xs" }) {
   const { t } = useT();
   return (
-    <Link
-      href="/login"
+    <a
+      href={`tel:${SITE_PHONE_PRIMARY_TEL}`}
       className={clsx(
         "inline-flex items-center gap-1 font-medium text-ink-soft hover:text-brand-red",
         size === "sm" ? "text-sm" : "text-xs"
       )}
     >
-      <Lock size={size === "sm" ? 13 : 11} /> {t.common.signInForPrice}
-    </Link>
+      <Phone size={size === "sm" ? 13 : 11} /> {t.common.callForQuote}
+    </a>
   );
 }
 

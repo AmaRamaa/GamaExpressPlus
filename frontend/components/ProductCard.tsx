@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Heart, ShoppingCart, Eye } from "lucide-react";
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
-import { PartCode, StarRating, StockBadge } from "./ui-bits";
+import { PartCode, StockBadge } from "./ui-bits";
 import ProductVisual from "./ProductVisual";
 import ProductPrice from "./ProductPrice";
 import QuickviewModal from "./QuickviewModal";
@@ -31,7 +31,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative mb-3 aspect-square overflow-hidden rounded-lg">
-          <ProductVisual categorySlug={product.categorySlug} className="transition-transform duration-300 group-hover:scale-105" />
+          <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} className="transition-transform duration-300 group-hover:scale-105" />
 
           {/* Hover overlay: quickview, matching Riardi's on-hover product actions */}
           <button
@@ -59,8 +59,6 @@ export default function ProductCard({ product }: { product: Product }) {
       <div className="mb-2">
         <PartCode label="Part No.">{product.partNumber}</PartCode>
       </div>
-
-      <StarRating rating={product.rating} count={product.reviewCount} />
 
       <div className="mt-3 flex items-center justify-between">
         <ProductPrice product={product} />

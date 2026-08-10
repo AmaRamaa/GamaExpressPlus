@@ -78,6 +78,7 @@ export interface Product {
   reviewCount: number;
   compatibleEngineIds: string[];
   isFeatured?: boolean;
+  imageUrl?: string;
 }
 
 export interface CartLine {
