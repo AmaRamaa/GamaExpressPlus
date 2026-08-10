@@ -62,8 +62,8 @@ export default function Footer() {
 
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col items-center justify-between gap-2 py-4 text-xs text-white/50 sm:flex-row">
-          <span>© {new Date().getFullYear()} Gama Express. {t.footer.rights}</span>
-          <span>Prishtinë, Kosovë · VAT ID 811234567</span>
+          <span>© {new Date().getFullYear()} Gama Express Sh.p.k. {t.footer.rights}</span>
+          <span>Kosovë · Nr. Biznesit 810100587</span>
         </div>
       </div>
     </footer>

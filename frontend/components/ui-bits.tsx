@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Star, Lock } from "lucide-react";
 import clsx from "clsx";
+import { useT } from "@/lib/i18n";
 
 export function StarRating({ rating, count }: { rating: number; count?: number }) {
   return (
@@ -41,6 +42,7 @@ export function PriceTag({ price, discountPrice, badge }: { price: number; disco
 }
 
 export function SignInForPrice({ size = "sm" }: { size?: "sm" | "xs" }) {
+  const { t } = useT();
   return (
     <Link
       href="/login"
@@ -49,24 +51,30 @@ export function SignInForPrice({ size = "sm" }: { size?: "sm" | "xs" }) {
         size === "sm" ? "text-sm" : "text-xs"
       )}
     >
-      <Lock size={size === "sm" ? 13 : 11} /> Sign in for price
+      <Lock size={size === "sm" ? 13 : 11} /> {t.common.signInForPrice}
     </Link>
   );
 }
 
-const stockConfig = {
-  IN_STOCK: { label: "In stock", className: "bg-success-light text-success" },
-  LOW_STOCK: { label: "Low stock", className: "bg-amber-50 text-amber-600" },
-  OUT_OF_STOCK: { label: "Out of stock", className: "bg-surface-muted text-ink-soft" },
-  BACKORDER: { label: "Backorder", className: "bg-blue-50 text-blue-600" },
+const stockClassNames = {
+  IN_STOCK: "bg-success-light text-success",
+  LOW_STOCK: "bg-amber-50 text-amber-600",
+  OUT_OF_STOCK: "bg-surface-muted text-ink-soft",
+  BACKORDER: "bg-blue-50 text-blue-600",
 };
 
-export function StockBadge({ status }: { status: keyof typeof stockConfig }) {
-  const cfg = stockConfig[status];
+export function StockBadge({ status }: { status: keyof typeof stockClassNames }) {
+  const { t } = useT();
+  const stockLabels: Record<keyof typeof stockClassNames, string> = {
+    IN_STOCK: t.common.inStock,
+    LOW_STOCK: t.common.lowStock,
+    OUT_OF_STOCK: t.common.outOfStock,
+    BACKORDER: t.common.backorder,
+  };
   return (
-    <span className={clsx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", cfg.className)}>
+    <span className={clsx("inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium", stockClassNames[status])}>
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {cfg.label}
+      {stockLabels[status]}
     </span>
   );
 }

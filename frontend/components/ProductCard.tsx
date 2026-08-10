@@ -9,6 +9,7 @@ import { PartCode, StarRating, StockBadge } from "./ui-bits";
 import ProductVisual from "./ProductVisual";
 import ProductPrice from "./ProductPrice";
 import QuickviewModal from "./QuickviewModal";
+import { useT } from "@/lib/i18n";
 import clsx from "clsx";
 
 export default function ProductCard({ product }: { product: Product }) {
@@ -16,12 +17,13 @@ export default function ProductCard({ product }: { product: Product }) {
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const isWishlisted = useStore((s) => s.wishlist.includes(product.id));
   const [quickviewOpen, setQuickviewOpen] = useState(false);
+  const { t } = useT();
 
   return (
     <div className="group relative flex flex-col rounded-xl border border-surface-border bg-surface p-4 shadow-soft transition-shadow hover:shadow-card">
       <button
         onClick={() => toggleWishlist(product.id)}
-        aria-label={isWishlisted ? "Remove from favorites" : "Save to favorites"}
+        aria-label={isWishlisted ? t.common.removeFromFavorites : t.common.saveToFavorites}
         className="absolute right-3 top-3 z-10 rounded-full bg-surface/90 p-2 shadow-soft transition-colors hover:bg-surface"
       >
         <Heart size={16} className={clsx(isWishlisted ? "fill-brand-red text-brand-red" : "text-ink-soft")} />
@@ -36,7 +38,7 @@ export default function ProductCard({ product }: { product: Product }) {
             onClick={(e) => { e.preventDefault(); setQuickviewOpen(true); }}
             className="absolute inset-x-0 bottom-0 flex translate-y-full items-center justify-center gap-1.5 bg-ink/85 py-2.5 text-xs font-semibold text-white opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100"
           >
-            <Eye size={14} /> Quickview
+            <Eye size={14} /> {t.common.quickview}
           </button>
         </div>
       </Link>
@@ -65,7 +67,7 @@ export default function ProductCard({ product }: { product: Product }) {
         <button
           onClick={() => addToCart(product)}
           disabled={product.stockStatus === "OUT_OF_STOCK"}
-          aria-label="Add to cart"
+          aria-label={t.common.addToCart}
           className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-red text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:bg-surface-border"
         >
           <ShoppingCart size={16} />
