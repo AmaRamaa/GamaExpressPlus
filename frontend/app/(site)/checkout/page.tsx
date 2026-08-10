@@ -7,6 +7,7 @@ import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
 import { CallForQuote } from "@/components/ui-bits";
 import { SITE_PHONE_PRIMARY, SITE_PHONE_PRIMARY_TEL, SITE_WHATSAPP_URL } from "@/lib/constants";
+import { useT } from "@/lib/i18n";
 
 const PHONE_DISPLAY = SITE_PHONE_PRIMARY;
 const PHONE_TEL = SITE_PHONE_PRIMARY_TEL;
@@ -16,6 +17,7 @@ export default function CheckoutPage() {
   const cart = useStore((s) => s.cart);
   const user = useStore((s) => s.user);
   const [copied, setCopied] = useState(false);
+  const { t } = useT();
 
   const subtotal = cart.reduce((sum, l) => sum + getEffectivePrice(l.product, user).finalPrice * l.quantity, 0);
 
@@ -34,34 +36,33 @@ export default function CheckoutPage() {
   if (cart.length === 0) {
     return (
       <div className="container-page py-16 text-center text-ink-soft">
-        Your cart is empty — nothing to order yet.
+        {t.checkout.emptyCart}
       </div>
     );
   }
 
   return (
     <div className="container-page py-8">
-      <h1 className="mb-2 font-display text-2xl font-bold text-ink">Complete your order by phone</h1>
+      <h1 className="mb-2 font-display text-2xl font-bold text-ink">{t.checkout.pageTitle}</h1>
       <p className="mb-6 text-sm text-ink-soft">
-        We don't take payment online. Call or message us with the list below and we'll confirm
-        availability, pricing, and delivery.
+        {t.checkout.pageDescription}
       </p>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
         <div className="rounded-xl border border-brand-red/30 bg-brand-red-light p-6 text-center">
           <Phone size={28} className="mx-auto mb-3 text-brand-red" />
-          <p className="font-display text-xl font-bold text-ink">Call us to order</p>
+          <p className="font-display text-xl font-bold text-ink">{t.checkout.callUsTitle}</p>
           <a href={`tel:${PHONE_TEL}`} className="mt-1 block font-display text-3xl font-bold text-brand-red hover:underline">
             {PHONE_DISPLAY}
           </a>
-          <p className="mt-2 text-sm text-ink-soft">Mon–Sat, 08:00–18:00 · Prishtinë, Kosovë</p>
+          <p className="mt-2 text-sm text-ink-soft">{t.checkout.hours}</p>
 
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-center">
             <a
               href={`tel:${PHONE_TEL}`}
               className="flex items-center justify-center gap-2 rounded-lg bg-brand-red px-5 py-3 text-sm font-semibold text-white hover:bg-brand-red-dark"
             >
-              <Phone size={16} /> Call now
+              <Phone size={16} /> {t.checkout.callNowButton}
             </a>
             <a
               href={WHATSAPP_URL}
@@ -69,7 +70,7 @@ export default function CheckoutPage() {
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 rounded-lg border border-surface-border bg-surface px-5 py-3 text-sm font-semibold text-ink hover:border-brand-red hover:text-brand-red"
             >
-              <MessageCircle size={16} /> Message on WhatsApp
+              <MessageCircle size={16} /> {t.checkout.whatsappButton}
             </a>
           </div>
 
@@ -78,17 +79,17 @@ export default function CheckoutPage() {
             className="mx-auto mt-4 flex items-center gap-1.5 text-xs font-medium text-ink-soft hover:text-brand-red"
           >
             {copied ? <Check size={13} /> : <Copy size={13} />}
-            {copied ? "Copied — paste it into your call notes or message" : "Copy order list to have ready"}
+            {copied ? t.checkout.copiedMessage : t.checkout.copyListButton}
           </button>
 
           <p className="mt-5 text-xs text-ink-soft">
-            Prefer we call you? <Link href="/contact" className="font-medium text-brand-red hover:underline">Leave your number here</Link>{" "}
-            and we'll get back to you.
+            {t.checkout.preferCallText} <Link href="/contact" className="font-medium text-brand-red hover:underline">{t.checkout.leaveNumberLink}</Link>{" "}
+            {t.checkout.getBackText}
           </p>
         </div>
 
         <div className="h-fit rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
-          <h2 className="mb-4 font-display text-lg font-semibold text-ink">Your order list</h2>
+          <h2 className="mb-4 font-display text-lg font-semibold text-ink">{t.checkout.orderListTitle}</h2>
           <div className="mb-4 max-h-64 space-y-3 overflow-y-auto">
             {cart.map((l) => (
               <div key={l.product.id} className="flex justify-between text-sm">
@@ -107,17 +108,17 @@ export default function CheckoutPage() {
             <>
               {user.discountPercent > 0 && (
                 <p className="mb-2 text-xs font-medium text-brand-red">
-                  {user.accountLabel || "Member"} pricing applied — {user.discountPercent}% off
+                  {user.accountLabel || t.checkout.memberFallback} {t.checkout.pricingAppliedLabel} — {user.discountPercent}{t.checkout.offSuffix}
                 </p>
               )}
               <div className="flex justify-between border-t border-surface-border pt-3 text-base font-semibold text-ink">
-                <span>Estimated total</span><span>€{subtotal.toFixed(2)}</span>
+                <span>{t.checkout.estimatedTotal}</span><span>€{subtotal.toFixed(2)}</span>
               </div>
-              <p className="mt-1 text-xs text-ink-soft">Final pricing, shipping, and delivery are confirmed on the call.</p>
+              <p className="mt-1 text-xs text-ink-soft">{t.checkout.finalPricingNote}</p>
             </>
           ) : (
             <p className="border-t border-surface-border pt-3 text-xs text-ink-soft">
-              <Link href="/login" className="font-medium text-brand-red hover:underline">Sign in</Link> to see pricing, or call us and we'll quote you directly.
+              <Link href="/login" className="font-medium text-brand-red hover:underline">{t.checkout.signIn}</Link> {t.checkout.toSeePricingText}
             </p>
           )}
         </div>

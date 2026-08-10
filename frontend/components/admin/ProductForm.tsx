@@ -235,7 +235,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             <input type="number" min="0" className={inputClass} value={values.lowStockThreshold} onChange={(e) => set("lowStockThreshold", e.target.value)} />
           </div>
         </div>
-        <div className="mt-4 flex gap-6">
+        <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
           <label className="flex items-center gap-2 text-sm text-ink">
             <input type="checkbox" checked={values.isFeatured} onChange={(e) => set("isFeatured", e.target.checked)} />
             Featured

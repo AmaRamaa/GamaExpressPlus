@@ -161,7 +161,7 @@ export default function HomeContent({
           </div>
           <div>
             <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-ink-soft">{t.home.makesLabel}</p>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {supportedMakes.map((make) => (
                 <div
                   key={make}

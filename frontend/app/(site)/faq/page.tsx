@@ -1,66 +1,71 @@
-import { ChevronDown } from "lucide-react";
+"use client";
 
-const faqGroups = [
-  {
-    title: "Ordering & fitment",
-    items: [
-      {
-        q: "How do I know a part will fit my car?",
-        a: "Use the Vehicle Finder to select your manufacturer, model, and car year. We'll only show parts verified for that exact generation and variant, so there's no guesswork.",
-      },
-      {
-        q: "What if my model isn't listed?",
-        a: "Use the \"Request a part\" form with your vehicle details and a description of what you need — our sourcing team will follow up with options within 1–2 business days.",
-      },
-      {
-        q: "Can I order by OEM or part number?",
-        a: "Yes — search by OEM number in the search bar at the top of any page, and matching parts will appear directly.",
-      },
-    ],
-  },
-  {
-    title: "Shipping & delivery",
-    items: [
-      {
-        q: "How fast will my order arrive?",
-        a: "Orders placed before 14:00 dispatch the same business day from our Prishtinë warehouse. Delivery is 1–3 days within Prishtinë and 2–4 days elsewhere in Kosovo. See our Shipping info page for full details.",
-      },
-      {
-        q: "Can I pick up my order in person?",
-        a: "Yes — select \"Store pickup\" at checkout and your order will be ready at our Prishtinë Central location, usually within 2 hours.",
-      },
-    ],
-  },
-  {
-    title: "Returns & warranty",
-    items: [
-      {
-        q: "What's your return policy?",
-        a: "Unused parts in original packaging can be returned within 30 days for a full refund. See our Returns & Warranty page for exceptions like painted panels and installed electrical parts.",
-      },
-      {
-        q: "Are parts covered by warranty?",
-        a: "Every part carries a minimum 24-month manufacturer warranty against defects, handled directly through our support team.",
-      },
-    ],
-  },
-  {
-    title: "Business accounts",
-    items: [
-      {
-        q: "Do you offer wholesale pricing?",
-        a: "Yes — garages and businesses can open a wholesale account for tiered pricing, invoicing, and bulk quotes. See our Business accounts page to get started.",
-      },
-    ],
-  },
-];
+import { ChevronDown } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 export default function FaqPage() {
+  const { t } = useT();
+
+  const faqGroups = [
+    {
+      title: t.faq.groupOrderingTitle,
+      items: [
+        {
+          q: t.faq.orderingQ1,
+          a: t.faq.orderingA1,
+        },
+        {
+          q: t.faq.orderingQ2,
+          a: t.faq.orderingA2,
+        },
+        {
+          q: t.faq.orderingQ3,
+          a: t.faq.orderingA3,
+        },
+      ],
+    },
+    {
+      title: t.faq.groupShippingTitle,
+      items: [
+        {
+          q: t.faq.shippingQ1,
+          a: t.faq.shippingA1,
+        },
+        {
+          q: t.faq.shippingQ2,
+          a: t.faq.shippingA2,
+        },
+      ],
+    },
+    {
+      title: t.faq.groupReturnsTitle,
+      items: [
+        {
+          q: t.faq.returnsQ1,
+          a: t.faq.returnsA1,
+        },
+        {
+          q: t.faq.returnsQ2,
+          a: t.faq.returnsA2,
+        },
+      ],
+    },
+    {
+      title: t.faq.groupBusinessTitle,
+      items: [
+        {
+          q: t.faq.businessQ1,
+          a: t.faq.businessA1,
+        },
+      ],
+    },
+  ];
+
   return (
     <div className="container-page py-12">
       <div className="mx-auto max-w-2xl text-center">
-        <h1 className="font-display text-3xl font-bold text-ink">Frequently asked questions</h1>
-        <p className="mt-2 text-sm text-ink-soft">Can't find your answer here? Reach out on the Contact page.</p>
+        <h1 className="font-display text-3xl font-bold text-ink">{t.faq.title}</h1>
+        <p className="mt-2 text-sm text-ink-soft">{t.faq.subtitle}</p>
       </div>
 
       <div className="mx-auto mt-10 max-w-2xl space-y-8">

@@ -3,22 +3,47 @@
 import { useState } from "react";
 import { Mail, Phone, Clock, MapPin } from "lucide-react";
 import { SITE_PHONE_PRIMARY, SITE_PHONE_SECONDARY, SITE_EMAIL, SITE_LOCATIONS } from "@/lib/constants";
-
-const info = [
-  { icon: Phone, label: `${SITE_PHONE_PRIMARY} · ${SITE_PHONE_SECONDARY}` },
-  { icon: Mail, label: SITE_EMAIL },
-  { icon: Clock, label: "Mon–Sat, 08:00–18:00" },
-];
+import { useT } from "@/lib/i18n";
+import { api } from "@/lib/api";
 
 export default function ContactPage() {
+  const { t } = useT();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      await api.post("/contact", {
+        fullName: form.get("fullName"),
+        email: form.get("email"),
+        subject: form.get("subject"),
+        message: form.get("message"),
+      });
+      setSubmitted(true);
+    } catch {
+      setError(t.common.formErrorGeneric);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const info = [
+    { icon: Phone, label: `${SITE_PHONE_PRIMARY} · ${SITE_PHONE_SECONDARY}` },
+    { icon: Mail, label: SITE_EMAIL },
+    { icon: Clock, label: t.contact.hours },
+  ];
 
   return (
     <div className="container-page py-12">
       <div className="mx-auto max-w-2xl text-center">
-        <h1 className="font-display text-3xl font-bold text-ink">Contact us</h1>
+        <h1 className="font-display text-3xl font-bold text-ink">{t.contact.pageTitle}</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          Questions about an order, fitment, or a wholesale account — we usually reply within one business day.
+          {t.contact.pageDesc}
         </p>
       </div>
 
@@ -39,41 +64,46 @@ export default function ContactPage() {
               className="flex items-center gap-3 text-sm text-ink-soft hover:text-brand-red"
             >
               <MapPin size={18} className="shrink-0 text-brand-red" />
-              {loc.label} — Get directions
+              {loc.label} — {t.contact.getDirections}
             </a>
           ))}
         </div>
 
         {submitted ? (
           <div className="rounded-xl border border-success/30 bg-success-light p-6 text-center">
-            <p className="font-semibold text-success">Message sent</p>
-            <p className="mt-1 text-sm text-ink-soft">We'll get back to you within one business day.</p>
+            <p className="font-semibold text-success">{t.contact.messageSentTitle}</p>
+            <p className="mt-1 text-sm text-ink-soft">{t.contact.messageSentDesc}</p>
           </div>
         ) : (
           <form
-            onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}
+            onSubmit={handleSubmit}
             className="space-y-4 rounded-xl border border-surface-border bg-surface p-6 shadow-soft"
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Full name</label>
-                <input required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.contact.fullNameLabel}</label>
+                <input name="fullName" required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Email</label>
-                <input required type="email" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.contact.emailLabel}</label>
+                <input name="email" required type="email" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Subject</label>
-              <input required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.contact.subjectLabel}</label>
+              <input name="subject" required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Message</label>
-              <textarea required rows={5} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.contact.messageLabel}</label>
+              <textarea name="message" required rows={5} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
             </div>
-            <button type="submit" className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark">
-              Send message
+            {error && <p className="text-sm text-brand-red">{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60"
+            >
+              {submitting ? t.common.formSending : t.contact.sendButton}
             </button>
           </form>
         )}

@@ -1,25 +1,23 @@
+"use client";
+
 import { Briefcase, MapPin, Clock, HeartHandshake, TrendingUp, Users2 } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
-const perks = [
-  { icon: HeartHandshake, title: "Health coverage", desc: "Private health insurance from day one." },
-  { icon: TrendingUp, title: "Growth", desc: "A growing catalog and team — real room to take on more." },
-  { icon: Users2, title: "Team discount", desc: "Staff pricing on every part in our catalog." },
-];
-
-const openings = [
-  { title: "Warehouse Associate", location: "Prishtinë", type: "Full-time" },
-  { title: "Parts Sourcing Specialist", location: "Prishtinë", type: "Full-time" },
-  { title: "Customer Support Agent", location: "Prishtinë · Remote-friendly", type: "Full-time" },
-];
+const perkIcons = [HeartHandshake, TrendingUp, Users2];
 
 export default function CareersPage() {
+  const { t } = useT();
+
+  const perks = t.careers.perks.map((p, i) => ({ ...p, icon: perkIcons[i] }));
+  const openings = t.careers.openings;
+
   return (
     <div className="container-page py-12">
       <div className="mx-auto max-w-2xl text-center">
         <Briefcase size={28} className="mx-auto mb-3 text-brand-red" />
-        <h1 className="font-display text-3xl font-bold text-ink">Careers at Gama Express</h1>
+        <h1 className="font-display text-3xl font-bold text-ink">{t.careers.pageTitle}</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          We're a small team building Kosovo's exterior parts catalog. Here's what it's like to work with us.
+          {t.careers.pageSubtitle}
         </p>
       </div>
 
@@ -34,7 +32,7 @@ export default function CareersPage() {
       </div>
 
       <div className="mx-auto mt-14 max-w-2xl">
-        <h2 className="mb-4 font-display text-xl font-bold text-ink">Open positions</h2>
+        <h2 className="mb-4 font-display text-xl font-bold text-ink">{t.careers.openPositions}</h2>
         <div className="space-y-3">
           {openings.map((o) => (
             <div key={o.title} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
@@ -49,14 +47,14 @@ export default function CareersPage() {
                 href="mailto:careers@gamaexpress.com?subject=Application%3A%20"
                 className="rounded-lg bg-brand-red px-4 py-2 text-xs font-semibold text-white hover:bg-brand-red-dark"
               >
-                Apply
+                {t.careers.apply}
               </a>
             </div>
           ))}
         </div>
         <p className="mt-6 text-center text-sm text-ink-soft">
-          Don't see a fit? Send your CV to{" "}
-          <a href="mailto:careers@gamaexpress.com" className="font-medium text-brand-red hover:underline">careers@gamaexpress.com</a> anyway.
+          {t.careers.noFitPrefix}{" "}
+          <a href="mailto:careers@gamaexpress.com" className="font-medium text-brand-red hover:underline">{t.careers.email}</a> {t.careers.noFitSuffix}
         </p>
       </div>
     </div>

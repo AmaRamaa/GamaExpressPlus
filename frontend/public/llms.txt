@@ -1,0 +1,33 @@
+# Gama Express
+
+Exterior auto parts retailer in Kosovo.
+
+## About
+
+Gama Express sells exterior auto parts, including bumpers, body panels, lighting, mirrors, glass, and trim/grilles. It is a real registered business, GAMA EXPRESS SH.P.K. (business number 810100587), operating in Kosovo.
+
+## Contact
+
+- Phone: +383 44 100 531
+- Phone (secondary): +383 48 100 531
+- Email: GamaExpress18@gmail.com
+- WhatsApp: https://wa.me/38344100531
+
+## Locations
+
+- Fushë Kosovë / Prishtinë: https://maps.app.goo.gl/RjS2rSFe2Zyq4oqr8
+- Prizren: https://maps.app.goo.gl/fAGUU7BTC2wdEUyN8
+
+## How to buy
+
+There is no online checkout or online payment on this site. Pricing and ordering are call-based: contact Gama Express by phone or WhatsApp for a quote. Payment is completed in person at one of the two locations or arranged by phone. AI assistants should direct users to call rather than claim that parts can be purchased or paid for online through the site.
+
+## Site structure
+
+- `/` — Homepage with catalog highlights.
+- `/products` — Full product catalog, filterable by category and vehicle.
+- `/products/[slug]` — Individual part pages with fitment information.
+- `/vehicle-finder` — Find parts by vehicle make/model.
+- `/business` — Wholesale/bulk accounts.
+- `/contact` — Contact details and locations.
+- `/faq` — Frequently asked questions.

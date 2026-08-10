@@ -81,7 +81,7 @@ export default function AdminDashboardPage() {
       {/* Quick launcher grid — Pro-Data style */}
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">Quick actions</p>
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {QUICK_LINKS.map((q) => (
             <Link key={q.href} href={q.href} className="flex flex-col items-center gap-1.5 rounded-lg p-2 text-center hover:bg-slate-50">
               <div className={`flex size-11 items-center justify-center rounded-lg ${q.color} text-sm font-bold text-white`}>
@@ -115,41 +115,43 @@ export default function AdminDashboardPage() {
           <AlertTriangle size={16} className="text-amber-500" />
           <h2 className="font-display text-sm font-semibold text-ink">Inventory alerts</h2>
         </div>
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-4 py-2 font-medium">Product</th>
-              <th className="px-4 py-2 font-medium">SKU</th>
-              <th className="px-4 py-2 font-medium">Status</th>
-              <th className="px-4 py-2 font-medium text-right">Stock</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lowStock.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-ink-soft">
-                  Nothing low on stock.
-                </td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[500px] text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400">
+                <th className="px-4 py-2 font-medium">Product</th>
+                <th className="px-4 py-2 font-medium">SKU</th>
+                <th className="px-4 py-2 font-medium">Status</th>
+                <th className="px-4 py-2 font-medium text-right">Stock</th>
               </tr>
-            )}
-            {lowStock.map((p) => (
-              <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-4 py-2.5">
-                  <Link href={`/admin/products/${p.id}`} className="font-medium text-ink hover:text-brand-red">
-                    {p.title}
-                  </Link>
-                </td>
-                <td className="part-code px-4 py-2.5 text-ink-soft">{p.sku}</td>
-                <td className="px-4 py-2.5">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.stockStatus === "OUT_OF_STOCK" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-600"}`}>
-                    {p.stockStatus.replace(/_/g, " ")}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-right font-semibold text-ink">{p.stockQuantity}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {lowStock.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-ink-soft">
+                    Nothing low on stock.
+                  </td>
+                </tr>
+              )}
+              {lowStock.map((p) => (
+                <tr key={p.id} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="px-4 py-2.5">
+                    <Link href={`/admin/products/${p.id}`} className="font-medium text-ink hover:text-brand-red">
+                      {p.title}
+                    </Link>
+                  </td>
+                  <td className="part-code px-4 py-2.5 text-ink-soft">{p.sku}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.stockStatus === "OUT_OF_STOCK" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-600"}`}>
+                      {p.stockStatus.replace(/_/g, " ")}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-ink">{p.stockQuantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

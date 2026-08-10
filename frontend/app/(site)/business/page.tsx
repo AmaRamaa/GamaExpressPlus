@@ -4,24 +4,44 @@ import { useState } from "react";
 import Link from "next/link";
 import { Building2, Percent, FileText, MapPin, CheckCircle2 } from "lucide-react";
 import { SITE_LOCATIONS } from "@/lib/constants";
-
-const wholesaleBenefits = [
-  "Tiered pricing based on monthly order volume",
-  "Dedicated account manager for sourcing and order issues",
-  "Priority stock allocation on high-demand parts",
-  "Net-30 invoicing for approved accounts",
-];
+import { useT } from "@/lib/i18n";
+import { api } from "@/lib/api";
 
 export default function BusinessPage() {
+  const { t } = useT();
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      await api.post("/contact/quote", {
+        companyName: form.get("companyName"),
+        contactName: form.get("contactName"),
+        email: form.get("email"),
+        phone: form.get("phone"),
+        volume: form.get("volume"),
+        partsNeeded: form.get("partsNeeded"),
+      });
+      setSubmitted(true);
+    } catch {
+      setError(t.common.formErrorGeneric);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="container-page py-12">
       <div className="mx-auto max-w-2xl text-center">
         <Building2 size={28} className="mx-auto mb-3 text-brand-red" />
-        <h1 className="font-display text-3xl font-bold text-ink">Business & wholesale accounts</h1>
+        <h1 className="font-display text-3xl font-bold text-ink">{t.business.title}</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          Tiered pricing, invoicing, and bulk quotes for garages, body shops, and resellers across Kosovo.
+          {t.business.subtitle}
         </p>
       </div>
 
@@ -29,10 +49,10 @@ export default function BusinessPage() {
       <section id="wholesale" className="mx-auto mt-14 max-w-3xl scroll-mt-24">
         <div className="mb-4 flex items-center gap-2">
           <Percent size={18} className="text-brand-red" />
-          <h2 className="font-display text-xl font-bold text-ink">Wholesale accounts</h2>
+          <h2 className="font-display text-xl font-bold text-ink">{t.business.wholesaleTitle}</h2>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
-          {wholesaleBenefits.map((b) => (
+          {t.business.wholesaleBenefits.map((b) => (
             <div key={b} className="flex items-start gap-2.5 rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
               <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-success" />
               <p className="text-sm text-ink-soft">{b}</p>
@@ -45,54 +65,59 @@ export default function BusinessPage() {
       <section id="quote" className="mx-auto mt-14 max-w-3xl scroll-mt-24">
         <div className="mb-4 flex items-center gap-2">
           <FileText size={18} className="text-brand-red" />
-          <h2 className="font-display text-xl font-bold text-ink">Request a bulk quote</h2>
+          <h2 className="font-display text-xl font-bold text-ink">{t.business.quoteTitle}</h2>
         </div>
         {submitted ? (
           <div className="rounded-xl border border-success/30 bg-success-light p-6 text-center">
-            <p className="font-semibold text-success">Quote request received</p>
-            <p className="mt-1 text-sm text-ink-soft">Our business team will follow up within 1–2 business days.</p>
+            <p className="font-semibold text-success">{t.business.quoteSubmittedTitle}</p>
+            <p className="mt-1 text-sm text-ink-soft">{t.business.quoteSubmittedDesc}</p>
           </div>
         ) : (
           <form
-            onSubmit={(e) => { e.preventDefault(); setSubmitted(true); }}
+            onSubmit={handleSubmit}
             className="space-y-4 rounded-xl border border-surface-border bg-surface p-6 shadow-soft"
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Company name</label>
-                <input required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.companyNameLabel}</label>
+                <input name="companyName" required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Contact name</label>
-                <input required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.contactNameLabel}</label>
+                <input name="contactName" required className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Email</label>
-                <input required type="email" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.emailLabel}</label>
+                <input name="email" required type="email" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-medium text-ink-soft">Phone</label>
-                <input className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.phoneLabel}</label>
+                <input name="phone" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
               </div>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Estimated monthly order volume</label>
-              <select className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm text-ink" defaultValue="">
-                <option value="" disabled>Select a range</option>
-                <option>Under €1,000</option>
-                <option>€1,000 – €5,000</option>
-                <option>€5,000 – €20,000</option>
-                <option>Over €20,000</option>
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.volumeLabel}</label>
+              <select name="volume" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm text-ink" defaultValue="">
+                <option value="" disabled>{t.business.selectRangePlaceholder}</option>
+                <option>{t.business.volumeUnder1k}</option>
+                <option>{t.business.volume1kTo5k}</option>
+                <option>{t.business.volume5kTo20k}</option>
+                <option>{t.business.volumeOver20k}</option>
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-soft">Parts needed</label>
-              <textarea required rows={4} placeholder="e.g. bumper covers and headlight assemblies for VW/Audi models" className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+              <label className="mb-1 block text-xs font-medium text-ink-soft">{t.business.partsNeededLabel}</label>
+              <textarea name="partsNeeded" required rows={4} placeholder={t.business.partsNeededPlaceholder} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
             </div>
-            <button type="submit" className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark">
-              Submit quote request
+            {error && <p className="text-sm text-brand-red">{error}</p>}
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60"
+            >
+              {submitting ? t.common.formSending : t.business.submitQuoteButton}
             </button>
           </form>
         )}
@@ -102,14 +127,11 @@ export default function BusinessPage() {
       <section id="invoicing" className="mx-auto mt-14 max-w-3xl scroll-mt-24">
         <div className="mb-4 flex items-center gap-2">
           <FileText size={18} className="text-brand-red" />
-          <h2 className="font-display text-xl font-bold text-ink">Invoicing</h2>
+          <h2 className="font-display text-xl font-bold text-ink">{t.business.invoicingTitle}</h2>
         </div>
         <div className="rounded-xl border border-surface-border bg-surface p-5 shadow-soft">
           <p className="text-sm leading-relaxed text-ink-soft">
-            Approved business accounts can order on Net-30 terms with consolidated monthly VAT invoicing.
-            Every invoice itemizes part numbers, OEM references, and order dates for easy reconciliation.
-            Reach out via the quote form above or <Link href="/contact" className="font-medium text-brand-red hover:underline">contact us</Link> to
-            set up invoicing for your account.
+            {t.business.invoicingDesc}<Link href="/contact" className="font-medium text-brand-red hover:underline">{t.business.invoicingContactLink}</Link>{t.business.invoicingDescEnd}
           </p>
         </div>
       </section>
@@ -118,7 +140,7 @@ export default function BusinessPage() {
       <section id="locations" className="mx-auto mt-14 max-w-3xl scroll-mt-24">
         <div className="mb-4 flex items-center gap-2">
           <MapPin size={18} className="text-brand-red" />
-          <h2 className="font-display text-xl font-bold text-ink">Branch locations</h2>
+          <h2 className="font-display text-xl font-bold text-ink">{t.business.locationsTitle}</h2>
         </div>
         <div className="space-y-3">
           {SITE_LOCATIONS.map((loc) => (
@@ -131,9 +153,9 @@ export default function BusinessPage() {
             >
               <div>
                 <p className="font-semibold text-ink">{loc.label}</p>
-                <p className="text-xs text-ink-soft">Mon–Sat, 08:00–18:00</p>
+                <p className="text-xs text-ink-soft">{t.business.locationsHours}</p>
               </div>
-              <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">Get directions</span>
+              <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">{t.business.getDirections}</span>
             </a>
           ))}
         </div>

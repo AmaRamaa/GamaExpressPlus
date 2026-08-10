@@ -58,8 +58,8 @@ export default function AdminCategoriesPage() {
         <p className="text-sm text-ink-soft">{categories.length} top-level categories</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-end gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
-        <div className="flex-1">
+      <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-200 bg-white p-4 shadow-soft">
+        <div className="min-w-[140px] flex-1">
           <label className="mb-1 block text-xs font-medium text-ink-soft">New category name</label>
           <input className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:border-brand-red" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lighting" />
         </div>
