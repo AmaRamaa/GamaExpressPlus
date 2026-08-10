@@ -3,18 +3,13 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Building2, Percent, FileText, MapPin, CheckCircle2 } from "lucide-react";
+import { SITE_LOCATIONS } from "@/lib/constants";
 
 const wholesaleBenefits = [
   "Tiered pricing based on monthly order volume",
   "Dedicated account manager for sourcing and order issues",
   "Priority stock allocation on high-demand parts",
   "Net-30 invoicing for approved accounts",
-];
-
-const branches = [
-  { name: "Prishtinë Central", address: "Rr. Bill Clinton, Prishtinë", hours: "Mon–Sat, 08:00–18:00", pickup: true },
-  { name: "Prizren Branch", address: "Rr. Nëna Terezë, Prizren", hours: "Mon–Sat, 09:00–17:00", pickup: true },
-  { name: "Gjilan Branch", address: "Rr. Bulevardi i Pavarësisë, Gjilan", hours: "Mon–Fri, 09:00–17:00", pickup: false },
 ];
 
 export default function BusinessPage() {
@@ -126,16 +121,20 @@ export default function BusinessPage() {
           <h2 className="font-display text-xl font-bold text-ink">Branch locations</h2>
         </div>
         <div className="space-y-3">
-          {branches.map((b) => (
-            <div key={b.name} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
+          {SITE_LOCATIONS.map((loc) => (
+            <a
+              key={loc.label}
+              href={loc.mapsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-surface-border bg-surface p-4 shadow-soft hover:border-brand-red"
+            >
               <div>
-                <p className="font-semibold text-ink">{b.name}</p>
-                <p className="text-xs text-ink-soft">{b.address} · {b.hours}</p>
+                <p className="font-semibold text-ink">{loc.label}</p>
+                <p className="text-xs text-ink-soft">Mon–Sat, 08:00–18:00</p>
               </div>
-              {b.pickup && (
-                <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">Pickup available</span>
-              )}
-            </div>
+              <span className="rounded-full bg-success-light px-2.5 py-1 text-xs font-medium text-success">Get directions</span>
+            </a>
           ))}
         </div>
       </section>

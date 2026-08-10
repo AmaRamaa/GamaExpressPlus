@@ -1,9 +1,10 @@
 import { Truck, MapPinned, Store, Clock } from "lucide-react";
+import { SITE_LOCATIONS } from "@/lib/constants";
 
 const methods = [
   { name: "Standard delivery", time: "1–3 business days", cost: "€3.90, free over €75", zones: "Prishtinë & surrounding municipalities" },
   { name: "Kosovo-wide delivery", time: "2–4 business days", cost: "€5.90, free over €120", zones: "All other Kosovo cities" },
-  { name: "Store pickup", time: "Same day, ready in ~2 hours", cost: "Free", zones: "Gama Express – Prishtinë Central" },
+  { name: "Store pickup", time: "Same day, ready in ~2 hours", cost: "Free", zones: "Both Gama Express locations" },
 ];
 
 export default function ShippingPage() {
@@ -53,8 +54,17 @@ export default function ShippingPage() {
         </div>
         <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
           <Store size={18} className="mb-2 text-brand-red" />
-          <p className="text-sm font-semibold text-ink">Pickup location</p>
-          <p className="mt-1 text-xs text-ink-soft">Rr. Bill Clinton, Prishtinë — select "Store pickup" at checkout.</p>
+          <p className="text-sm font-semibold text-ink">Pickup locations</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            {SITE_LOCATIONS.map((loc, i) => (
+              <span key={loc.label}>
+                {i > 0 && " · "}
+                <a href={loc.mapsUrl} target="_blank" rel="noopener noreferrer" className="font-medium text-brand-red hover:underline">
+                  {loc.label}
+                </a>
+              </span>
+            ))}
+          </p>
         </div>
       </div>
     </div>
