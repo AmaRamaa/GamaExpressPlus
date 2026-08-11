@@ -3,10 +3,17 @@ import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
-router.use(requireAuth, requireRole("ADMIN", "SUPER_ADMIN"));
+router.use(requireAuth);
+
+// Everything below defaults to ADMIN/SUPER_ADMIN only. The two product-listing
+// routes also allow STAFF_PIN (temporary shared-code access, see auth.ts's
+// POST /pin) so staff entering products from their phones can see the list
+// they're building without getting real admin visibility into orders/users.
+const adminOnly = requireRole("ADMIN", "SUPER_ADMIN");
+const adminOrStaffPin = requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN");
 
 // Dashboard summary
-router.get("/analytics/summary", async (_req, res) => {
+router.get("/analytics/summary", adminOnly, async (_req, res) => {
   const [totalOrders, totalRevenue, totalUsers, totalProducts, lowStock, pendingReviews, openQuotes] =
     await Promise.all([
       prisma.order.count(),
@@ -29,7 +36,7 @@ router.get("/analytics/summary", async (_req, res) => {
   });
 });
 
-router.get("/analytics/sales", async (req, res) => {
+router.get("/analytics/sales", adminOnly, async (req, res) => {
   const days = Number(req.query.days) || 30;
   const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const orders = await prisma.order.findMany({
@@ -41,7 +48,7 @@ router.get("/analytics/sales", async (req, res) => {
 });
 
 // User management
-router.get("/users", async (req, res) => {
+router.get("/users", adminOnly, async (req, res) => {
   const { role, q } = req.query as Record<string, string>;
   const users = await prisma.user.findMany({
     where: {
@@ -54,7 +61,7 @@ router.get("/users", async (req, res) => {
   res.json(users);
 });
 
-router.patch("/users/:id", async (req, res) => {
+router.patch("/users/:id", adminOnly, async (req, res) => {
   const { role, wholesaleTier, wholesaleDiscountPct, isBusinessAccount } = req.body ?? {};
   const user = await prisma.user.update({
     where: { id: req.params.id },
@@ -64,7 +71,7 @@ router.patch("/users/:id", async (req, res) => {
 });
 
 // Inventory
-router.get("/inventory/low-stock", async (_req, res) => {
+router.get("/inventory/low-stock", adminOnly, async (_req, res) => {
   const products = await prisma.product.findMany({
     where: { stockStatus: { in: ["LOW_STOCK", "OUT_OF_STOCK"] } },
     include: { warehouseStock: { include: { warehouse: true } } },
@@ -72,7 +79,7 @@ router.get("/inventory/low-stock", async (_req, res) => {
   res.json(products);
 });
 
-router.patch("/inventory/:productId/stock", async (req, res) => {
+router.patch("/inventory/:productId/stock", adminOnly, async (req, res) => {
   const { warehouseId, quantity } = req.body ?? {};
   const stock = await prisma.warehouseStock.upsert({
     where: { warehouseId_productId: { warehouseId, productId: req.params.productId } },
@@ -97,7 +104,7 @@ router.patch("/inventory/:productId/stock", async (req, res) => {
 });
 
 // Products — admin listing includes inactive items and supports search
-router.get("/products", async (req, res) => {
+router.get("/products", adminOrStaffPin, async (req, res) => {
   const { q, page = "1", limit = "24" } = req.query as Record<string, string>;
   const where: any = q
     ? {
@@ -126,7 +133,7 @@ router.get("/products", async (req, res) => {
   res.json({ items, total, page: Number(page), limit: take, totalPages: Math.ceil(total / take) });
 });
 
-router.get("/products/:id", async (req, res) => {
+router.get("/products/:id", adminOrStaffPin, async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
     include: { images: { orderBy: { sortOrder: "asc" } }, brand: true, category: true },
@@ -139,7 +146,7 @@ router.get("/products/:id", async (req, res) => {
 // brand/category by name (creating them if they don't exist yet), then
 // creates all valid rows in a single transaction. Returns a per-row report
 // so partial failures are visible instead of silently dropped.
-router.post("/products/import", async (req, res) => {
+router.post("/products/import", adminOnly, async (req, res) => {
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
   if (rows.length === 0) return res.status(400).json({ error: "No rows to import" });
 
@@ -258,7 +265,7 @@ router.post("/products/import", async (req, res) => {
 });
 
 // Orders queue
-router.get("/orders", async (req, res) => {
+router.get("/orders", adminOnly, async (req, res) => {
   const { status } = req.query as Record<string, string>;
   const orders = await prisma.order.findMany({
     where: status ? { status: status as any } : undefined,

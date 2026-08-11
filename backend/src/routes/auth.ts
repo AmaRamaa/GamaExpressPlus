@@ -1,6 +1,7 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../utils/jwt";
@@ -84,6 +85,41 @@ router.post("/login", async (req, res) => {
       id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, role: user.role,
       isBusinessAccount: user.isBusinessAccount, companyName: user.companyName,
       wholesaleDiscountPct: user.wholesaleDiscountPct,
+    },
+  });
+});
+
+// Shared-PIN login for staff who register products from their own phones
+// without an individual account. Not tied to any DB user -- the JWT carries
+// a synthetic userId/role that requireRole checks like any other role string.
+router.post("/pin", async (req, res) => {
+  const staffPinCode = process.env.STAFF_PIN_CODE;
+  if (!staffPinCode) {
+    return res.status(503).json({ error: "Staff PIN login is not configured" });
+  }
+
+  const { code, staffName } = req.body ?? {};
+  if (code !== staffPinCode) {
+    return res.status(401).json({ error: "Invalid code" });
+  }
+
+  // Longer-lived than the shared signAccessToken default (15m) since staff
+  // will keep this session open on a device all day -- signed here directly
+  // rather than changing signAccessToken's expiry for everyone.
+  const accessSecret = process.env.JWT_ACCESS_SECRET || "dev-access-secret";
+  const accessToken = jwt.sign({ userId: "staff-pin", role: "STAFF_PIN" }, accessSecret, {
+    expiresIn: "24h",
+  });
+
+  res.json({
+    accessToken,
+    refreshToken: null,
+    user: {
+      id: "staff-pin",
+      email: "staff@device.local",
+      firstName: typeof staffName === "string" && staffName.trim() ? staffName.trim() : "Staff",
+      lastName: "",
+      role: "STAFF_PIN",
     },
   });
 });

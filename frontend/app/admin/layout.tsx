@@ -57,6 +57,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white/60">Loading…</div>;
   }
 
+  const visibleLinks = user.role === "STAFF_PIN" ? LINKS.filter((l) => l.href === "/admin/products") : LINKS;
+
   return (
     <div className="flex min-h-screen bg-slate-100">
       <aside className="hidden w-56 shrink-0 bg-slate-900 lg:flex lg:flex-col">
@@ -65,7 +67,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <span className="font-display text-sm font-bold text-white">Admin Panel</span>
         </div>
         <nav className="flex flex-1 flex-col gap-0.5 p-2">
-          {LINKS.map(({ href, label, icon: Icon, exact }) => {
+          {visibleLinks.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname.startsWith(href);
             return (
               <Link
@@ -115,7 +117,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </button>
             </div>
             <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2">
-              {LINKS.map(({ href, label, icon: Icon, exact }) => {
+              {visibleLinks.map(({ href, label, icon: Icon, exact }) => {
                 const active = exact ? pathname === href : pathname.startsWith(href);
                 return (
                   <Link

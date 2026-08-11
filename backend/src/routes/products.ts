@@ -133,20 +133,30 @@ router.get("/:slug", async (req, res) => {
   res.json({ ...product, rating: Math.round(rating * 10) / 10, reviewCount });
 });
 
-// Admin: create product
-router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req: AuthedRequest, res) => {
+// Admin (and staff-PIN device) create product
+router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), async (req: AuthedRequest, res) => {
   const parsed = productWriteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
+  // staffName is intentionally read straight off req.body rather than being
+  // part of productWriteSchema -- it isn't a real product field, it just
+  // tags which shared device/staff member created the product when the
+  // request came in via the staff-PIN flow. Real admin logins never set it.
+  const data: typeof parsed.data & { createdByDevice?: string | null } = { ...parsed.data };
+  if (req.user?.role === "STAFF_PIN") {
+    const staffName = req.body?.staffName;
+    data.createdByDevice = typeof staffName === "string" && staffName.trim() ? staffName.trim() : null;
+  }
+
   try {
-    const product = await prisma.product.create({ data: parsed.data });
+    const product = await prisma.product.create({ data });
     res.status(201).json(product);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 });
 
-router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req: AuthedRequest, res) => {
+router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), async (req: AuthedRequest, res) => {
   const parsed = productWriteSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 

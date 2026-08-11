@@ -42,6 +42,30 @@ async function request<T>(
   return data as T;
 }
 
+// Dedicated multipart helper: unlike request() above, this must NOT set
+// Content-Type itself -- the browser needs to add the multipart boundary,
+// which it only does when Content-Type is left unset on a FormData body.
+async function uploadRequest<T>(path: string, formData: FormData, token?: string | null): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    body: formData,
+  });
+
+  const text = await res.text();
+  const data = text ? JSON.parse(text) : undefined;
+
+  if (!res.ok) {
+    const message =
+      typeof data?.error === "string"
+        ? data.error
+        : data?.error?.formErrors?.[0] || res.statusText || "Upload failed";
+    throw new ApiError(res.status, message);
+  }
+
+  return data as T;
+}
+
 export const api = {
   get: <T>(path: string, token?: string | null) => request<T>(path, { method: "GET", token }),
   post: <T>(path: string, body?: unknown, token?: string | null) =>
@@ -51,4 +75,5 @@ export const api = {
   patch: <T>(path: string, body?: unknown, token?: string | null) =>
     request<T>(path, { method: "PATCH", body: body !== undefined ? JSON.stringify(body) : undefined, token }),
   delete: <T>(path: string, token?: string | null) => request<T>(path, { method: "DELETE", token }),
+  upload: <T>(path: string, formData: FormData, token?: string | null) => uploadRequest<T>(path, formData, token),
 };

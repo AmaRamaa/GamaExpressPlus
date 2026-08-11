@@ -320,6 +320,8 @@ model Product {
   seoTitle       String?
   seoDescription String?
 
+  createdByDevice String? // set when created via the staff PIN flow, not a real user account
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

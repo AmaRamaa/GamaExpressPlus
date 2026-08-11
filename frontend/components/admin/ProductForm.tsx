@@ -1,14 +1,21 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
 interface ImageRow { url: string; altText: string }
+interface PendingUpload {
+  id: string;
+  previewUrl: string;
+  fileName: string;
+  status: "uploading" | "error";
+  errorMessage?: string;
+}
 
 export interface ProductFormValues {
   id?: string;
@@ -63,6 +70,10 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+  const [uploadError, setUploadError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingUploadsRef = useRef<PendingUpload[]>([]);
 
   const isEdit = !!values.id;
 
@@ -71,8 +82,59 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    pendingUploadsRef.current = pendingUploads;
+  }, [pendingUploads]);
+
+  // Revoke any outstanding local object URLs when the form unmounts.
+  useEffect(() => {
+    return () => {
+      pendingUploadsRef.current.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    };
+  }, []);
+
   function set<K extends keyof ProductFormValues>(key: K, value: ProductFormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }));
+  }
+
+  function handleFilesSelected(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    setUploadError("");
+    Array.from(fileList).forEach((file) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const previewUrl = URL.createObjectURL(file);
+      setPendingUploads((prev) => [...prev, { id, previewUrl, fileName: file.name, status: "uploading" }]);
+      uploadOneFile(id, file);
+    });
+  }
+
+  async function uploadOneFile(id: string, file: File) {
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const data = await api.upload<{ url: string; publicId?: string }>("/uploads", formData, token);
+      // Functional update: parallel uploads resolve in any order, so this
+      // must append onto the latest state, not a `values` closed over when
+      // this upload started.
+      setValues((v) => ({ ...v, images: [...v.images, { url: data.url, altText: "" }] }));
+      setPendingUploads((prev) => {
+        const done = prev.find((p) => p.id === id);
+        if (done) URL.revokeObjectURL(done.previewUrl);
+        return prev.filter((p) => p.id !== id);
+      });
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Upload failed";
+      setPendingUploads((prev) => prev.map((p) => (p.id === id ? { ...p, status: "error", errorMessage: message } : p)));
+      setUploadError("Upload failed, try again or paste an image URL below instead.");
+    }
+  }
+
+  function dismissPendingUpload(id: string) {
+    setPendingUploads((prev) => {
+      const found = prev.find((p) => p.id === id);
+      if (found) URL.revokeObjectURL(found.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
   }
 
   function slugify(s: string) {
@@ -131,7 +193,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         const { images, ...updatePayload } = payload;
         await api.put(`/products/${values.id}`, updatePayload, token);
       } else {
-        await api.post("/products", payload, token);
+        const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
+        await api.post("/products", { ...payload, ...(staffName ? { staffName } : {}) }, token);
       }
       router.push("/admin/products");
     } catch (err) {
@@ -249,19 +312,82 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
 
       {!isEdit && (
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-display text-sm font-semibold text-ink">Images</h2>
+          <h2 className="mb-4 font-display text-sm font-semibold text-ink">Images</h2>
+
+          <div className="mb-5">
+            <label className={labelClass}>Upload photos</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                handleFilesSelected(e.target.files);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-ink hover:bg-slate-50"
+            >
+              <Upload size={16} /> Choose photos from phone
+            </button>
+            {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
+
+            {pendingUploads.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {pendingUploads.map((p) => (
+                  <div key={p.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                    <img src={p.previewUrl} alt="" className="h-full w-full object-cover" />
+                    {p.status === "uploading" ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-600/85 p-1 text-center">
+                        <span className="text-[9px] leading-tight text-white">Failed</span>
+                        <button
+                          type="button"
+                          onClick={() => dismissPendingUpload(p.id)}
+                          className="rounded-full bg-white/20 p-0.5 text-white hover:bg-white/40"
+                        >
+                          <X size={10} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-2 flex items-center justify-between">
+            <label className={labelClass}>Added images</label>
             <button
               type="button"
               onClick={() => set("images", [...values.images, { url: "", altText: "" }])}
               className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-ink-soft hover:bg-slate-50"
             >
-              <Plus size={14} /> Add image
+              <Plus size={14} /> Add image URL
             </button>
           </div>
           <div className="space-y-2">
             {values.images.map((img, i) => (
-              <div key={i} className="flex gap-2">
+              <div key={i} className="flex items-center gap-2">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  {img.url && (
+                    <img
+                      src={img.url}
+                      alt=""
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.visibility = "hidden";
+                      }}
+                    />
+                  )}
+                </div>
                 <input
                   className={inputClass}
                   placeholder="Image URL"
@@ -286,6 +412,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                   type="button"
                   onClick={() => set("images", values.images.filter((_, idx) => idx !== i))}
                   className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  aria-label="Remove image"
                 >
                   <Trash2 size={16} />
                 </button>
