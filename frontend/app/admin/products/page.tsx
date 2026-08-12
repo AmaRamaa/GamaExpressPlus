@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Trash2, Pencil, Wand2 } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Wand2, History, ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
+
+interface LastViewed { id: string; title: string; sku: string }
 
 interface ProductRow {
   id: string;
@@ -31,6 +33,18 @@ export default function AdminProductsPage() {
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
   const [error, setError] = useState("");
+  const [lastViewed, setLastViewed] = useState<LastViewed | null>(null);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("gama-express-last-viewed-product");
+    if (raw) {
+      try {
+        setLastViewed(JSON.parse(raw));
+      } catch {
+        // ignore malformed value
+      }
+    }
+  }, []);
 
   function load() {
     const params = new URLSearchParams({ page: String(page), limit: "20" });
@@ -72,6 +86,22 @@ export default function AdminProductsPage() {
           </Link>
         </div>
       </div>
+
+      {lastViewed && (
+        <Link
+          href={`/admin/products/${lastViewed.id}`}
+          className="flex items-center justify-between gap-3 rounded-xl border-2 border-brand-red bg-brand-red-light px-4 py-3 shadow-soft transition-colors hover:bg-brand-red/10"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <History size={18} className="shrink-0 text-brand-red" />
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-brand-red">Continue where you left off</p>
+              <p className="truncate text-sm font-medium text-ink">{lastViewed.title} <span className="part-code text-ink-soft">({lastViewed.sku})</span></p>
+            </div>
+          </div>
+          <ArrowRight size={18} className="shrink-0 text-brand-red" />
+        </Link>
+      )}
 
       <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2">
         <Search size={16} className="text-slate-400" />

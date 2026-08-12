@@ -15,7 +15,8 @@ export default function EditProductPage() {
   useEffect(() => {
     api
       .get<any>(`/admin/products/${id}`, token)
-      .then((p) =>
+      .then((p) => {
+        localStorage.setItem("gama-express-last-viewed-product", JSON.stringify({ id: p.id, title: p.title, sku: p.sku }));
         setInitial({
           id: p.id,
           sku: p.sku,
@@ -43,8 +44,8 @@ export default function EditProductPage() {
               label: `${gen?.model?.make?.name ?? ""} ${gen?.model?.name ?? ""} ${gen?.name ?? ""} (${gen?.yearFrom ?? "?"}–${gen?.yearTo ?? "present"})`.trim(),
             };
           }),
-        })
-      )
+        });
+      })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load product"));
   }, [id, token]);
 
