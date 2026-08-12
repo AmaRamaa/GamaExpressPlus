@@ -31,6 +31,7 @@ export function mapProduct(raw: any): Product {
     compatibleEngineIds: (raw.compatibility || []).map((c: any) => c.engineId ?? c.engine?.id).filter(Boolean),
     isFeatured: raw.isFeatured,
     imageUrl: raw.images?.[0]?.url || undefined,
+    imageUrls: (raw.images || []).map((img: any) => img.url).filter(Boolean),
   };
 }
 

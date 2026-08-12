@@ -79,6 +79,7 @@ export interface Product {
   compatibleEngineIds: string[];
   isFeatured?: boolean;
   imageUrl?: string;
+  imageUrls?: string[];
 }
 
 export interface CartLine {

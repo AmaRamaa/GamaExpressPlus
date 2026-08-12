@@ -65,17 +65,20 @@ const labelClass = "mb-1 block text-xs font-medium text-ink-soft";
 export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> }) {
   const router = useRouter();
   const token = useAdminStore((s) => s.token);
+  const user = useAdminStore((s) => s.user);
   const [values, setValues] = useState<ProductFormValues>({ ...EMPTY, ...initial });
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [justCreatedSku, setJustCreatedSku] = useState("");
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
 
   const isEdit = !!values.id;
+  const isStaffFastEntry = user?.role === "STAFF_PIN" && !isEdit;
 
   useEffect(() => {
     api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
@@ -141,6 +144,44 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
 
+  async function handleFastEntrySubmit(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setJustCreatedSku("");
+
+    if (!values.sku.trim()) {
+      setError("SKU is required.");
+      return;
+    }
+    if (pendingUploads.some((p) => p.status === "uploading")) {
+      setError("Wait for photos to finish uploading first.");
+      return;
+    }
+
+    const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
+    const payload = {
+      sku: values.sku.trim(),
+      images: {
+        create: values.images
+          .filter((img) => img.url.trim())
+          .map((img, i) => ({ url: img.url.trim(), sortOrder: i })),
+      },
+      ...(staffName ? { staffName } : {}),
+    };
+
+    setSaving(true);
+    try {
+      await api.post("/products", payload, token);
+      setJustCreatedSku(values.sku.trim());
+      setValues({ ...EMPTY });
+      setPendingUploads([]);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to save product");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
@@ -202,6 +243,103 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     } finally {
       setSaving(false);
     }
+  }
+
+  if (isStaffFastEntry) {
+    return (
+      <form onSubmit={handleFastEntrySubmit} className="space-y-6">
+        {justCreatedSku && (
+          <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+            Added "{justCreatedSku}". An admin will fill in the details later — keep going.
+          </p>
+        )}
+        {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+          <h2 className="mb-4 font-display text-sm font-semibold text-ink">Product</h2>
+          <label className={labelClass}>SKU *</label>
+          <input
+            className={inputClass}
+            value={values.sku}
+            onChange={(e) => set("sku", e.target.value)}
+            placeholder="Scan or type the SKU"
+            autoFocus
+            required
+          />
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+          <h2 className="mb-4 font-display text-sm font-semibold text-ink">Photos</h2>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={(e) => {
+              handleFilesSelected(e.target.files);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-ink hover:bg-slate-50"
+          >
+            <Upload size={16} /> Choose photos from phone
+          </button>
+          {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
+
+          {(pendingUploads.length > 0 || values.images.length > 0) && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {values.images.map((img, i) => (
+                <div key={img.url + i} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <img src={img.url} alt="" className="h-full w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => set("images", values.images.filter((_, idx) => idx !== i))}
+                    aria-label="Remove photo"
+                    className="absolute right-0.5 top-0.5 rounded-full bg-black/50 p-0.5 text-white hover:bg-black/70"
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+              {pendingUploads.map((p) => (
+                <div key={p.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <img src={p.previewUrl} alt="" className="h-full w-full object-cover" />
+                  {p.status === "uploading" ? (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Loader2 size={18} className="animate-spin text-white" />
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-600/85 p-1 text-center">
+                      <span className="text-[9px] leading-tight text-white">Failed</span>
+                      <button
+                        type="button"
+                        onClick={() => dismissPendingUpload(p.id)}
+                        className="rounded-full bg-white/20 p-0.5 text-white hover:bg-white/40"
+                      >
+                        <X size={10} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={() => router.push("/admin/products")} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
+            Done for now
+          </button>
+          <button type="submit" disabled={saving} className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60">
+            {saving ? "Saving…" : "Add & next"}
+          </button>
+        </div>
+      </form>
+    );
   }
 
   return (

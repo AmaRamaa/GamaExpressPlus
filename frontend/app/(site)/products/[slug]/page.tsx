@@ -26,10 +26,12 @@ export default function ProductDetailPage() {
   const [notFound, setNotFound] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
 
   useEffect(() => {
     setProduct(null);
     setNotFound(false);
+    setActiveImageIndex(0);
     api
       .get<any>(`/products/${slug}`)
       .then((raw) => {
@@ -71,8 +73,29 @@ export default function ProductDetailPage() {
         {/* Gallery */}
         <div>
           <div className="relative mb-3 aspect-square overflow-hidden rounded-xl">
-            <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} variant="primary" />
+            <ProductVisual
+              categorySlug={product.categorySlug}
+              imageUrl={product.imageUrls?.[activeImageIndex] ?? product.imageUrl}
+              variant="primary"
+            />
           </div>
+          {product.imageUrls && product.imageUrls.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {product.imageUrls.map((url, i) => (
+                <button
+                  key={url + i}
+                  type="button"
+                  onClick={() => setActiveImageIndex(i)}
+                  aria-label={`View photo ${i + 1}`}
+                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                    i === activeImageIndex ? "border-brand-red" : "border-transparent hover:border-surface-border"
+                  }`}
+                >
+                  <img src={url} alt="" className="h-full w-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Info */}

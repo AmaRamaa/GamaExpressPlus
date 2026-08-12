@@ -50,6 +50,51 @@ const productWriteSchema = z.object({
     .optional(),
 });
 
+// Staff-PIN fast entry: only SKU + photos are collected on the floor. Everything
+// else that's normally required (title, slug, category, brand, part number,
+// price) gets a sensible placeholder so a real admin can find and finish these
+// in one pass afterward -- created inactive so an incomplete/zero-priced,
+// unsorted product is never live on the storefront in the meantime.
+const staffFastEntrySchema = z.object({
+  sku: z.string().min(1),
+  images: z
+    .object({
+      create: z
+        .array(
+          z.object({
+            url: z.string().min(1),
+            altText: z.string().optional(),
+            sortOrder: z.number().int().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
+});
+
+function slugify(s: string) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
+}
+
+let placeholderIds: { categoryId: string; brandId: string } | null = null;
+async function getPlaceholderCategoryAndBrand() {
+  if (placeholderIds) return placeholderIds;
+  const [category, brand] = await Promise.all([
+    prisma.category.upsert({
+      where: { slug: "unsorted" },
+      update: {},
+      create: { name: "Unsorted (needs review)", slug: "unsorted" },
+    }),
+    prisma.brand.upsert({
+      where: { name: "Unknown" },
+      update: {},
+      create: { name: "Unknown", slug: "unknown" },
+    }),
+  ]);
+  placeholderIds = { categoryId: category.id, brandId: brand.id };
+  return placeholderIds;
+}
+
 function withRatingSummary<T extends { reviews?: { rating: number }[] }>(product: T) {
   const { reviews, ...rest } = product;
   const reviewCount = reviews?.length ?? 0;
@@ -135,21 +180,51 @@ router.get("/:slug", async (req, res) => {
 
 // Admin (and staff-PIN device) create product
 router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), async (req: AuthedRequest, res) => {
+  if (req.user?.role === "STAFF_PIN") {
+    const parsed = staffFastEntrySchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+    const staffName = req.body?.staffName;
+    const createdByDevice = typeof staffName === "string" && staffName.trim() ? staffName.trim() : null;
+    const { categoryId, brandId } = await getPlaceholderCategoryAndBrand();
+    const baseSlug = slugify(parsed.data.sku);
+
+    // Slug is unique -- extremely unlikely to collide since SKU already is,
+    // but retry with a short suffix instead of failing the whole request.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
+      try {
+        const product = await prisma.product.create({
+          data: {
+            sku: parsed.data.sku,
+            slug,
+            title: `[Draft] ${parsed.data.sku}`,
+            partNumber: parsed.data.sku,
+            categoryId,
+            brandId,
+            priceEur: 0,
+            isActive: false,
+            createdByDevice,
+            images: parsed.data.images,
+          },
+        });
+        return res.status(201).json(product);
+      } catch (err: any) {
+        if (err.code === "P2002" && err.meta?.target?.includes("slug")) continue;
+        if (err.code === "P2002" && err.meta?.target?.includes("sku")) {
+          return res.status(400).json({ error: `A product with SKU "${parsed.data.sku}" already exists.` });
+        }
+        return res.status(400).json({ error: err.message });
+      }
+    }
+    return res.status(500).json({ error: "Could not generate a unique slug, try again." });
+  }
+
   const parsed = productWriteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  // staffName is intentionally read straight off req.body rather than being
-  // part of productWriteSchema -- it isn't a real product field, it just
-  // tags which shared device/staff member created the product when the
-  // request came in via the staff-PIN flow. Real admin logins never set it.
-  const data: typeof parsed.data & { createdByDevice?: string | null } = { ...parsed.data };
-  if (req.user?.role === "STAFF_PIN") {
-    const staffName = req.body?.staffName;
-    data.createdByDevice = typeof staffName === "string" && staffName.trim() ? staffName.trim() : null;
-  }
-
   try {
-    const product = await prisma.product.create({ data });
+    const product = await prisma.product.create({ data: parsed.data });
     res.status(201).json(product);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
