@@ -2,19 +2,20 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
+import { processImage } from "@/lib/imageProcessing";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
 interface ImageRow { url: string; altText: string }
-interface CompatibilityRow { engineId: string; label: string }
+interface CompatibilityRow { engineId: string; generationId: string; label: string }
 interface PendingUpload {
   id: string;
   previewUrl: string;
   fileName: string;
-  status: "uploading" | "error";
+  status: "processing" | "uploading" | "error";
   errorMessage?: string;
 }
 interface VehicleMake { id: string; name: string }
@@ -81,6 +82,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [justCreatedSku, setJustCreatedSku] = useState("");
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState("");
+  const [autoRemoveBg, setAutoRemoveBg] = useState(true);
+  const [autoWatermark, setAutoWatermark] = useState(true);
   const [rotatingUrl, setRotatingUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
@@ -92,7 +95,6 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [vMakeId, setVMakeId] = useState("");
   const [vModelId, setVModelId] = useState("");
   const [vGenerationId, setVGenerationId] = useState("");
-  const [vEngineId, setVEngineId] = useState("");
 
   const isEdit = !!values.id;
   const isStaffFastEntry = user?.role === "STAFF_PIN" && !isEdit;
@@ -119,15 +121,21 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     api.get<VehicleEngine[]>(`/vehicles/generations/${vGenerationId}/engines`).then(setVEngines).catch(() => setVEngines([]));
   }, [vGenerationId]);
 
+  // We don't track engine-specific fitment -- the storefront's own vehicle
+  // search only ever filters by generation (`compatibility.some(engine.generationId)`),
+  // so linking to any one engine in the chosen generation is enough for the
+  // part to show up correctly. Picking the first one keeps the admin picker
+  // to Make/Model/Generation, matching how fitment is actually tracked here.
   function addCompatibility() {
     const make = vMakes.find((m) => m.id === vMakeId);
     const model = vModels.find((m) => m.id === vModelId);
     const generation = vGenerations.find((g) => g.id === vGenerationId);
-    const engine = vEngines.find((e) => e.id === vEngineId);
-    if (!make || !model || !generation || !engine || values.compatibility.some((c) => c.engineId === engine.id)) return;
-    const label = `${make.name} ${model.name} ${generation.name} — ${engine.engineCode} ${engine.displacementL}L ${engine.fuelType}`;
-    set("compatibility", [...values.compatibility, { engineId: engine.id, label }]);
-    setVEngineId("");
+    const engine = vEngines[0];
+    if (!make || !model || !generation || !engine) return;
+    if (values.compatibility.some((c) => c.generationId === generation.id)) return;
+    const label = `${make.name} ${model.name} ${generation.name} (${generation.yearFrom}–${generation.yearTo ?? "present"})`;
+    set("compatibility", [...values.compatibility, { engineId: engine.id, generationId: generation.id, label }]);
+    setVMakeId(""); setVModelId(""); setVGenerationId("");
   }
 
   useEffect(() => {
@@ -151,15 +159,21 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     Array.from(fileList).forEach((file) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const previewUrl = URL.createObjectURL(file);
-      setPendingUploads((prev) => [...prev, { id, previewUrl, fileName: file.name, status: "uploading" }]);
+      setPendingUploads((prev) => [...prev, { id, previewUrl, fileName: file.name, status: "processing" }]);
       uploadOneFile(id, file);
     });
   }
 
   async function uploadOneFile(id: string, file: File) {
     try {
+      let toUpload: Blob = file;
+      if (autoRemoveBg || autoWatermark) {
+        toUpload = await processImage(file, { removeBg: autoRemoveBg, watermark: autoWatermark });
+      }
+      setPendingUploads((prev) => prev.map((p) => (p.id === id ? { ...p, status: "uploading" } : p)));
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", toUpload, file.name);
       const data = await api.upload<{ url: string; publicId?: string }>("/uploads", formData, token);
       // Functional update: parallel uploads resolve in any order, so this
       // must append onto the latest state, not a `values` closed over when
@@ -247,6 +261,15 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     });
   }
 
+  // The array order IS the ranking -- saved as each image's sortOrder on submit.
+  function moveImage(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= values.images.length) return;
+    const next = [...values.images];
+    [next[index], next[target]] = [next[target], next[index]];
+    set("images", next);
+  }
+
   function slugify(s: string) {
     return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
   }
@@ -260,7 +283,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       setError("SKU is required.");
       return;
     }
-    if (pendingUploads.some((p) => p.status === "uploading")) {
+    if (pendingUploads.some((p) => p.status === "uploading" || p.status === "processing")) {
       setError("Wait for photos to finish uploading first.");
       return;
     }
@@ -397,12 +420,22 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           >
             <Upload size={16} /> Choose photos from phone
           </button>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+              <input type="checkbox" checked={autoRemoveBg} onChange={(e) => setAutoRemoveBg(e.target.checked)} />
+              Remove background
+            </label>
+            <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+              <input type="checkbox" checked={autoWatermark} onChange={(e) => setAutoWatermark(e.target.checked)} />
+              Add watermark
+            </label>
+          </div>
           {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
 
           {(pendingUploads.length > 0 || values.images.length > 0) && (
             <div className="mt-3 flex flex-wrap gap-2">
               {values.images.map((img, i) => (
-                <div key={img.url + i} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div key={img.url + i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   <img src={img.url} alt="" className="h-full w-full object-cover" />
                   <button
                     type="button"
@@ -412,16 +445,34 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                   >
                     <X size={12} />
                   </button>
+                  {values.images.length > 1 && (
+                    <div className="absolute inset-x-0 bottom-0 flex justify-center gap-0.5 bg-black/50 py-0.5">
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, -1)}
+                        disabled={i === 0}
+                        aria-label="Move photo earlier"
+                        className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-30"
+                      >
+                        <ArrowLeft size={11} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveImage(i, 1)}
+                        disabled={i === values.images.length - 1}
+                        aria-label="Move photo later"
+                        className="rounded p-0.5 text-white hover:bg-white/20 disabled:opacity-30"
+                      >
+                        <ArrowRight size={11} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
               {pendingUploads.map((p) => (
-                <div key={p.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div key={p.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   <img src={p.previewUrl} alt="" className="h-full w-full object-cover" />
-                  {p.status === "uploading" ? (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                      <Loader2 size={18} className="animate-spin text-white" />
-                    </div>
-                  ) : (
+                  {p.status === "error" ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-600/85 p-1 text-center">
                       <span className="text-[9px] leading-tight text-white">Failed</span>
                       <button
@@ -431,6 +482,11 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                       >
                         <X size={10} />
                       </button>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50">
+                      <Loader2 size={18} className="animate-spin text-white" />
+                      <span className="text-[8px] leading-tight text-white">{p.status === "processing" ? "Processing…" : "Uploading…"}</span>
                     </div>
                   )}
                 </div>
@@ -581,18 +637,24 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             >
               <Upload size={16} /> Choose photos from phone
             </button>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+                <input type="checkbox" checked={autoRemoveBg} onChange={(e) => setAutoRemoveBg(e.target.checked)} />
+                Remove background
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+                <input type="checkbox" checked={autoWatermark} onChange={(e) => setAutoWatermark(e.target.checked)} />
+                Add watermark
+              </label>
+            </div>
             {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
 
             {pendingUploads.length > 0 && (
               <div className="mt-3 flex flex-wrap gap-2">
                 {pendingUploads.map((p) => (
-                  <div key={p.id} className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                  <div key={p.id} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                     <img src={p.previewUrl} alt="" className="h-full w-full object-cover" />
-                    {p.status === "uploading" ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                        <Loader2 size={18} className="animate-spin text-white" />
-                      </div>
-                    ) : (
+                    {p.status === "error" ? (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-red-600/85 p-1 text-center">
                         <span className="text-[9px] leading-tight text-white">Failed</span>
                         <button
@@ -602,6 +664,11 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                         >
                           <X size={10} />
                         </button>
+                      </div>
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50">
+                        <Loader2 size={18} className="animate-spin text-white" />
+                        <span className="text-[8px] leading-tight text-white">{p.status === "processing" ? "Processing…" : "Uploading…"}</span>
                       </div>
                     )}
                   </div>
@@ -623,7 +690,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           <div className="space-y-2">
             {values.images.map((img, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   {img.url && (
                     <img
                       src={img.url}
@@ -640,6 +707,30 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                     </div>
                   )}
                 </div>
+                {values.images.length > 1 && (
+                  <div className="flex shrink-0 flex-col gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => moveImage(i, -1)}
+                      disabled={i === 0}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                      aria-label="Move photo up"
+                      title="Move up"
+                    >
+                      <ArrowUp size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => moveImage(i, 1)}
+                      disabled={i === values.images.length - 1}
+                      className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                      aria-label="Move photo down"
+                      title="Move down"
+                    >
+                      <ArrowDown size={14} />
+                    </button>
+                  </div>
+                )}
                 {isAdmin && img.url && (
                   <div className="flex shrink-0 gap-0.5">
                     <button
@@ -715,27 +806,23 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           </h2>
           <p className="mb-4 text-xs text-ink-soft">So this part shows up when a customer searches by their vehicle.</p>
 
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            <select className={inputClass} value={vMakeId} onChange={(e) => { setVMakeId(e.target.value); setVModelId(""); setVGenerationId(""); setVEngineId(""); }}>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <select className={inputClass} value={vMakeId} onChange={(e) => { setVMakeId(e.target.value); setVModelId(""); setVGenerationId(""); }}>
               <option value="">Make</option>
               {vMakes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <select className={inputClass} value={vModelId} disabled={!vMakeId} onChange={(e) => { setVModelId(e.target.value); setVGenerationId(""); setVEngineId(""); }}>
+            <select className={inputClass} value={vModelId} disabled={!vMakeId} onChange={(e) => { setVModelId(e.target.value); setVGenerationId(""); }}>
               <option value="">Model</option>
               {vModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
             </select>
-            <select className={inputClass} value={vGenerationId} disabled={!vModelId} onChange={(e) => { setVGenerationId(e.target.value); setVEngineId(""); }}>
+            <select className={inputClass} value={vGenerationId} disabled={!vModelId} onChange={(e) => setVGenerationId(e.target.value)}>
               <option value="">Generation</option>
               {vGenerations.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.yearFrom}–{g.yearTo ?? "present"})</option>)}
-            </select>
-            <select className={inputClass} value={vEngineId} disabled={!vGenerationId} onChange={(e) => setVEngineId(e.target.value)}>
-              <option value="">Engine</option>
-              {vEngines.map((e) => <option key={e.id} value={e.id}>{e.engineCode} — {e.displacementL}L {e.fuelType}</option>)}
             </select>
             <button
               type="button"
               onClick={addCompatibility}
-              disabled={!vEngineId}
+              disabled={!vGenerationId || vEngines.length === 0}
               className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-sm font-medium text-ink hover:bg-slate-50 disabled:opacity-40"
             >
               <Plus size={14} /> Add

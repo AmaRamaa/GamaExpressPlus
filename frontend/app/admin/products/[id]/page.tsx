@@ -35,10 +35,14 @@ export default function EditProductPage() {
           isFeatured: p.isFeatured,
           isActive: p.isActive,
           images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "" })),
-          compatibility: (p.compatibility || []).map((c: any) => ({
-            engineId: c.engineId,
-            label: `${c.engine?.generation?.model?.make?.name ?? ""} ${c.engine?.generation?.model?.name ?? ""} ${c.engine?.generation?.name ?? ""} — ${c.engine?.engineCode ?? ""} ${c.engine?.displacementL ?? ""}L ${c.engine?.fuelType ?? ""}`.trim(),
-          })),
+          compatibility: (p.compatibility || []).map((c: any) => {
+            const gen = c.engine?.generation;
+            return {
+              engineId: c.engineId,
+              generationId: gen?.id ?? "",
+              label: `${gen?.model?.make?.name ?? ""} ${gen?.model?.name ?? ""} ${gen?.name ?? ""} (${gen?.yearFrom ?? "?"}–${gen?.yearTo ?? "present"})`.trim(),
+            };
+          }),
         })
       )
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load product"));
