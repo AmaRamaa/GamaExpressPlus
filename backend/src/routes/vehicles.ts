@@ -29,7 +29,30 @@ router.get("/generations/:generationId/engines", async (req, res) => {
     where: { generationId: req.params.generationId },
     orderBy: { engineCode: "asc" },
   });
-  res.json(engines);
+
+  // This business doesn't track fitment by engine (only by generation), and
+  // seeded vehicle data doesn't always include real engine rows. Product
+  // compatibility still needs *an* engineId to point at (existing schema),
+  // so make sure every generation has at least one -- otherwise the admin's
+  // "add vehicle" picker has nothing to select and silently can't proceed.
+  if (engines.length > 0) return res.json(engines);
+
+  const generation = await prisma.vehicleGeneration.findUnique({ where: { id: req.params.generationId } });
+  if (!generation) return res.json([]);
+
+  const placeholder = await prisma.vehicleEngine.create({
+    data: {
+      generationId: generation.id,
+      engineCode: "ALL",
+      displacementL: 0,
+      fuelType: "PETROL",
+      horsePowerHp: 0,
+      transmission: "MANUAL",
+      yearFrom: generation.yearFrom,
+      yearTo: generation.yearTo,
+    },
+  });
+  res.json([placeholder]);
 });
 
 // GET /api/vehicles/engines/:engineId/products
