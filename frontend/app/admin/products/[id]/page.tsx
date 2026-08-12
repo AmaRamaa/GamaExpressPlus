@@ -34,7 +34,11 @@ export default function EditProductPage() {
           lowStockThreshold: String(p.lowStockThreshold),
           isFeatured: p.isFeatured,
           isActive: p.isActive,
-          images: [],
+          images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "" })),
+          compatibility: (p.compatibility || []).map((c: any) => ({
+            engineId: c.engineId,
+            label: `${c.engine?.generation?.model?.make?.name ?? ""} ${c.engine?.generation?.model?.name ?? ""} ${c.engine?.generation?.name ?? ""} — ${c.engine?.engineCode ?? ""} ${c.engine?.displacementL ?? ""}L ${c.engine?.fuelType ?? ""}`.trim(),
+          })),
         })
       )
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load product"));

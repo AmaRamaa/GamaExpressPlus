@@ -2,13 +2,14 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Upload, Loader2, X } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
 interface ImageRow { url: string; altText: string }
+interface CompatibilityRow { engineId: string; label: string }
 interface PendingUpload {
   id: string;
   previewUrl: string;
@@ -16,6 +17,10 @@ interface PendingUpload {
   status: "uploading" | "error";
   errorMessage?: string;
 }
+interface VehicleMake { id: string; name: string }
+interface VehicleModel { id: string; name: string }
+interface VehicleGeneration { id: string; name: string; yearFrom: number; yearTo: number | null }
+interface VehicleEngine { id: string; engineCode: string; displacementL: number; fuelType: string; horsePowerHp: number }
 
 export interface ProductFormValues {
   id?: string;
@@ -36,6 +41,7 @@ export interface ProductFormValues {
   isFeatured: boolean;
   isActive: boolean;
   images: ImageRow[];
+  compatibility: CompatibilityRow[];
 }
 
 const EMPTY: ProductFormValues = {
@@ -56,6 +62,7 @@ const EMPTY: ProductFormValues = {
   isFeatured: false,
   isActive: true,
   images: [],
+  compatibility: [],
 };
 
 const inputClass =
@@ -74,16 +81,54 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [justCreatedSku, setJustCreatedSku] = useState("");
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState("");
+  const [rotatingUrl, setRotatingUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
 
+  const [vMakes, setVMakes] = useState<VehicleMake[]>([]);
+  const [vModels, setVModels] = useState<VehicleModel[]>([]);
+  const [vGenerations, setVGenerations] = useState<VehicleGeneration[]>([]);
+  const [vEngines, setVEngines] = useState<VehicleEngine[]>([]);
+  const [vMakeId, setVMakeId] = useState("");
+  const [vModelId, setVModelId] = useState("");
+  const [vGenerationId, setVGenerationId] = useState("");
+  const [vEngineId, setVEngineId] = useState("");
+
   const isEdit = !!values.id;
   const isStaffFastEntry = user?.role === "STAFF_PIN" && !isEdit;
+  const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
     api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
-  }, []);
+    if (isAdmin) api.get<VehicleMake[]>("/vehicles/makes").then(setVMakes).catch(() => {});
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!vMakeId) { setVModels([]); return; }
+    api.get<VehicleModel[]>(`/vehicles/makes/${vMakeId}/models`).then(setVModels).catch(() => setVModels([]));
+  }, [vMakeId]);
+
+  useEffect(() => {
+    if (!vModelId) { setVGenerations([]); return; }
+    api.get<VehicleGeneration[]>(`/vehicles/models/${vModelId}/generations`).then(setVGenerations).catch(() => setVGenerations([]));
+  }, [vModelId]);
+
+  useEffect(() => {
+    if (!vGenerationId) { setVEngines([]); return; }
+    api.get<VehicleEngine[]>(`/vehicles/generations/${vGenerationId}/engines`).then(setVEngines).catch(() => setVEngines([]));
+  }, [vGenerationId]);
+
+  function addCompatibility() {
+    const make = vMakes.find((m) => m.id === vMakeId);
+    const model = vModels.find((m) => m.id === vModelId);
+    const generation = vGenerations.find((g) => g.id === vGenerationId);
+    const engine = vEngines.find((e) => e.id === vEngineId);
+    if (!make || !model || !generation || !engine || values.compatibility.some((c) => c.engineId === engine.id)) return;
+    const label = `${make.name} ${model.name} ${generation.name} — ${engine.engineCode} ${engine.displacementL}L ${engine.fuelType}`;
+    set("compatibility", [...values.compatibility, { engineId: engine.id, label }]);
+    setVEngineId("");
+  }
 
   useEffect(() => {
     pendingUploadsRef.current = pendingUploads;
@@ -129,6 +174,68 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       const message = err instanceof ApiError ? err.message : "Upload failed";
       setPendingUploads((prev) => prev.map((p) => (p.id === id ? { ...p, status: "error", errorMessage: message } : p)));
       setUploadError("Upload failed, try again or paste an image URL below instead.");
+    }
+  }
+
+  // Rotates a photo for real (not just a CSS transform) by redrawing it onto a
+  // rotated canvas, re-uploading the result to Storage, and swapping the URL
+  // in place -- so the fix actually shows up for customers, not just in admin.
+  async function rotateImage(index: number, degrees: 90 | -90) {
+    const img = values.images[index];
+    if (!img || rotatingUrl) return;
+    setRotatingUrl(img.url);
+    setError("");
+    try {
+      const source = new Image();
+      source.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        source.onload = () => resolve();
+        source.onerror = () => reject(new Error("Could not load image for rotating"));
+        source.src = img.url;
+      });
+      const canvas = document.createElement("canvas");
+      const swapDims = Math.abs(degrees) === 90;
+      canvas.width = swapDims ? source.naturalHeight : source.naturalWidth;
+      canvas.height = swapDims ? source.naturalWidth : source.naturalHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Canvas not supported");
+      ctx.translate(canvas.width / 2, canvas.height / 2);
+      ctx.rotate((degrees * Math.PI) / 180);
+      ctx.drawImage(source, -source.naturalWidth / 2, -source.naturalHeight / 2);
+
+      const blob: Blob = await new Promise((resolve, reject) =>
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Could not export rotated image"))), "image/jpeg", 0.92)
+      );
+      const formData = new FormData();
+      formData.append("file", new File([blob], "rotated.jpg", { type: "image/jpeg" }));
+      const data = await api.upload<{ url: string }>("/uploads", formData, token);
+
+      setValues((v) => {
+        const next = [...v.images];
+        next[index] = { ...next[index], url: data.url };
+        return { ...v, images: next };
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not rotate this photo -- it may be blocking cross-origin access.");
+    } finally {
+      setRotatingUrl(null);
+    }
+  }
+
+  async function downloadImage(url: string) {
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objectUrl;
+      a.download = url.split("/").pop() || "photo.jpg";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      window.open(url, "_blank");
     }
   }
 
@@ -226,13 +333,15 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           .filter((img) => img.url.trim())
           .map((img, i) => ({ url: img.url.trim(), altText: img.altText.trim() || undefined, sortOrder: i })),
       },
+      compatibility: {
+        create: values.compatibility.map((c) => ({ engineId: c.engineId })),
+      },
     };
 
     setSaving(true);
     try {
       if (isEdit) {
-        const { images, ...updatePayload } = payload;
-        await api.put(`/products/${values.id}`, updatePayload, token);
+        await api.put(`/products/${values.id}`, payload, token);
       } else {
         const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
         await api.post("/products", { ...payload, ...(staffName ? { staffName } : {}) }, token);
@@ -448,7 +557,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         </div>
       </div>
 
-      {!isEdit && (
+      {(
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
           <h2 className="mb-4 font-display text-sm font-semibold text-ink">Images</h2>
 
@@ -514,7 +623,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           <div className="space-y-2">
             {values.images.map((img, i) => (
               <div key={i} className="flex items-center gap-2">
-                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
                   {img.url && (
                     <img
                       src={img.url}
@@ -525,7 +634,45 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                       }}
                     />
                   )}
+                  {rotatingUrl === img.url && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <Loader2 size={14} className="animate-spin text-white" />
+                    </div>
+                  )}
                 </div>
+                {isAdmin && img.url && (
+                  <div className="flex shrink-0 gap-0.5">
+                    <button
+                      type="button"
+                      onClick={() => rotateImage(i, -90)}
+                      disabled={!!rotatingUrl}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-40"
+                      aria-label="Rotate left"
+                      title="Rotate left"
+                    >
+                      <RotateCcw size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => rotateImage(i, 90)}
+                      disabled={!!rotatingUrl}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-40"
+                      aria-label="Rotate right"
+                      title="Rotate right"
+                    >
+                      <RotateCw size={15} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => downloadImage(img.url)}
+                      className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink"
+                      aria-label="Download photo"
+                      title="Download"
+                    >
+                      <Download size={15} />
+                    </button>
+                  </div>
+                )}
                 <input
                   className={inputClass}
                   placeholder="Image URL"
@@ -557,6 +704,59 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
               </div>
             ))}
             {values.images.length === 0 && <p className="text-sm text-ink-soft">No images added yet.</p>}
+          </div>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+          <h2 className="mb-1 flex items-center gap-2 font-display text-sm font-semibold text-ink">
+            <Car size={16} className="text-brand-red" /> Vehicle compatibility
+          </h2>
+          <p className="mb-4 text-xs text-ink-soft">So this part shows up when a customer searches by their vehicle.</p>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+            <select className={inputClass} value={vMakeId} onChange={(e) => { setVMakeId(e.target.value); setVModelId(""); setVGenerationId(""); setVEngineId(""); }}>
+              <option value="">Make</option>
+              {vMakes.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <select className={inputClass} value={vModelId} disabled={!vMakeId} onChange={(e) => { setVModelId(e.target.value); setVGenerationId(""); setVEngineId(""); }}>
+              <option value="">Model</option>
+              {vModels.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+            </select>
+            <select className={inputClass} value={vGenerationId} disabled={!vModelId} onChange={(e) => { setVGenerationId(e.target.value); setVEngineId(""); }}>
+              <option value="">Generation</option>
+              {vGenerations.map((g) => <option key={g.id} value={g.id}>{g.name} ({g.yearFrom}–{g.yearTo ?? "present"})</option>)}
+            </select>
+            <select className={inputClass} value={vEngineId} disabled={!vGenerationId} onChange={(e) => setVEngineId(e.target.value)}>
+              <option value="">Engine</option>
+              {vEngines.map((e) => <option key={e.id} value={e.id}>{e.engineCode} — {e.displacementL}L {e.fuelType}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={addCompatibility}
+              disabled={!vEngineId}
+              className="flex items-center justify-center gap-1 rounded-lg border border-slate-200 px-2.5 py-2 text-sm font-medium text-ink hover:bg-slate-50 disabled:opacity-40"
+            >
+              <Plus size={14} /> Add
+            </button>
+          </div>
+
+          <div className="mt-4 space-y-1.5">
+            {values.compatibility.map((c) => (
+              <div key={c.engineId} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm text-ink">
+                <span>{c.label}</span>
+                <button
+                  type="button"
+                  onClick={() => set("compatibility", values.compatibility.filter((x) => x.engineId !== c.engineId))}
+                  className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                  aria-label="Remove vehicle"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            {values.compatibility.length === 0 && <p className="text-sm text-ink-soft">Universal fit — no specific vehicle assigned.</p>}
           </div>
         </div>
       )}

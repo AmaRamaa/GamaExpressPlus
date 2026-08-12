@@ -136,7 +136,16 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
 router.get("/products/:id", adminOrStaffPin, async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },
-    include: { images: { orderBy: { sortOrder: "asc" } }, brand: true, category: true },
+    include: {
+      images: { orderBy: { sortOrder: "asc" } },
+      brand: true,
+      category: true,
+      compatibility: {
+        include: {
+          engine: { include: { generation: { include: { model: { include: { make: true } } } } } },
+        },
+      },
+    },
   });
   if (!product) return res.status(404).json({ error: "Product not found" });
   res.json(product);

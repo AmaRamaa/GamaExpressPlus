@@ -48,6 +48,18 @@ const productWriteSchema = z.object({
         .optional(),
     })
     .optional(),
+  compatibility: z
+    .object({
+      create: z
+        .array(
+          z.object({
+            engineId: z.string().min(1),
+            notes: z.string().optional(),
+          })
+        )
+        .optional(),
+    })
+    .optional(),
 });
 
 // Staff-PIN fast entry: only SKU + photos are collected on the floor. Everything
@@ -238,8 +250,20 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
   const parsed = productWriteSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
+  // The edit form always sends the complete current image/compatibility list
+  // (not just what changed), so an edit should replace the stored set to
+  // match rather than append to it -- otherwise removing a photo or a
+  // vehicle-fitment entry in the UI would silently do nothing.
+  const data: any = { ...parsed.data };
+  if (parsed.data.images) {
+    data.images = { deleteMany: {}, create: parsed.data.images.create ?? [] };
+  }
+  if (parsed.data.compatibility) {
+    data.compatibility = { deleteMany: {}, create: parsed.data.compatibility.create ?? [] };
+  }
+
   try {
-    const product = await prisma.product.update({ where: { id: req.params.id }, data: parsed.data });
+    const product = await prisma.product.update({ where: { id: req.params.id }, data });
     res.json(product);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
