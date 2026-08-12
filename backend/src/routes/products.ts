@@ -76,9 +76,13 @@ function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
 }
 
-let placeholderIds: { categoryId: string; brandId: string } | null = null;
+// Deliberately NOT cached across requests: if either row is ever deleted
+// (e.g. someone doing catalog cleanup mistakes "Unknown" for stray junk),
+// a cached id would keep pointing at a row that no longer exists and every
+// fast-entry create would fail with a dangling foreign key until the process
+// happened to restart. Re-upserting per request is cheap at this volume and
+// makes the placeholders self-healing instead.
 async function getPlaceholderCategoryAndBrand() {
-  if (placeholderIds) return placeholderIds;
   const [category, brand] = await Promise.all([
     prisma.category.upsert({
       where: { slug: "unsorted" },
@@ -91,8 +95,7 @@ async function getPlaceholderCategoryAndBrand() {
       create: { name: "Unknown", slug: "unknown" },
     }),
   ]);
-  placeholderIds = { categoryId: category.id, brandId: brand.id };
-  return placeholderIds;
+  return { categoryId: category.id, brandId: brand.id };
 }
 
 function withRatingSummary<T extends { reviews?: { rating: number }[] }>(product: T) {
