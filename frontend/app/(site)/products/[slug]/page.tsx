@@ -77,6 +77,7 @@ export default function ProductDetailPage() {
               categorySlug={product.categorySlug}
               imageUrl={product.imageUrls?.[activeImageIndex] ?? product.imageUrl}
               variant="primary"
+              fit="contain"
             />
           </div>
           {product.imageUrls && product.imageUrls.length > 1 && (

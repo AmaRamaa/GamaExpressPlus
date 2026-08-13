@@ -23,11 +23,13 @@ export default function ProductVisual({
   imageUrl,
   variant = "primary",
   className = "",
+  fit = "cover",
 }: {
   categorySlug: string;
   imageUrl?: string;
   variant?: "primary" | "secondary";
   className?: string;
+  fit?: "cover" | "contain";
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const cfg = visuals[categorySlug] || fallback;
@@ -36,8 +38,8 @@ export default function ProductVisual({
   if (imageUrl) {
     return (
       <>
-        <div className={`group/visual relative h-full w-full overflow-hidden ${className}`}>
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+        <div className={`group/visual relative h-full w-full overflow-hidden ${fit === "contain" ? "bg-surface-muted" : ""} ${className}`}>
+          <img src={imageUrl} alt="" className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`} />
           <button
             type="button"
             onClick={(e) => {
@@ -45,8 +47,8 @@ export default function ProductVisual({
               e.stopPropagation();
               setLightboxOpen(true);
             }}
-            aria-label="Zoom image"
-            className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full bg-white/90 text-ink opacity-0 shadow-soft transition-opacity group-hover/visual:opacity-100"
+            aria-label="View full photo"
+            className="absolute bottom-2 right-2 flex size-8 items-center justify-center rounded-full bg-white/90 text-ink shadow-soft transition-opacity sm:opacity-0 sm:group-hover/visual:opacity-100"
           >
             <ZoomIn size={16} />
           </button>
