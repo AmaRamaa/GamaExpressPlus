@@ -42,7 +42,12 @@ app.use(helmet());
 // Known production frontend is always allowed regardless of how CORS_ORIGIN
 // is (mis)configured on the host — Railway's env var only adds to this list,
 // it can't accidentally lock the real frontend out.
-const DEFAULT_ORIGINS = ["https://gama-express-plus.vercel.app", "http://localhost:3000"];
+const DEFAULT_ORIGINS = [
+  "https://gama-express-plus.vercel.app",
+  "https://gamaexpress-ks.com",
+  "https://www.gamaexpress-ks.com",
+  "http://localhost:3000",
+];
 const envOrigins = process.env.CORS_ORIGIN?.split(",").map((o) => o.trim()).filter(Boolean) ?? [];
 const allowedOrigins = [...new Set([...DEFAULT_ORIGINS, ...envOrigins])];
 app.use(cors({ origin: allowedOrigins, credentials: true }));
