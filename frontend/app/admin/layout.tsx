@@ -11,20 +11,25 @@ import {
   Upload,
   ShoppingBag,
   Users,
+  Car,
   LogOut,
   Menu,
   X,
 } from "lucide-react";
 import { useAdminStore } from "@/lib/admin-store";
 
+// Each link's `roles` list mirrors the backend's requireRole gate on the API
+// it depends on -- keep them in sync so the panel never shows a link that
+// just 403s. Omit `roles` for links every admin-capable role can see.
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/brands", label: "Brands", icon: Tags },
-  { href: "/admin/categories", label: "Categories", icon: FolderTree },
-  { href: "/admin/import", label: "Import", icon: Upload },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/admin/users", label: "Users", icon: Users },
+  { href: "/admin/products", label: "Products", icon: Package, roles: ["ADMIN", "SUPER_ADMIN", "WAREHOUSE_STAFF"] },
+  { href: "/admin/brands", label: "Brands", icon: Tags, roles: ["ADMIN", "SUPER_ADMIN"] },
+  { href: "/admin/categories", label: "Categories", icon: FolderTree, roles: ["ADMIN", "SUPER_ADMIN"] },
+  { href: "/admin/vehicles", label: "Vehicles", icon: Car, roles: ["ADMIN", "SUPER_ADMIN"] },
+  { href: "/admin/import", label: "Import", icon: Upload, roles: ["ADMIN", "SUPER_ADMIN", "WAREHOUSE_STAFF"] },
+  { href: "/admin/orders", label: "Orders", icon: ShoppingBag, roles: ["ADMIN", "SUPER_ADMIN", "SUPPORT"] },
+  { href: "/admin/users", label: "Users", icon: Users, roles: ["ADMIN", "SUPER_ADMIN"] },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -57,7 +62,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white/60">Loading…</div>;
   }
 
-  const visibleLinks = user.role === "STAFF_PIN" ? LINKS.filter((l) => l.href === "/admin/products") : LINKS;
+  const visibleLinks =
+    user.role === "STAFF_PIN"
+      ? LINKS.filter((l) => l.href === "/admin/products")
+      : LINKS.filter((l) => !l.roles || l.roles.includes(user.role));
 
   return (
     <div className="flex min-h-screen bg-slate-100">

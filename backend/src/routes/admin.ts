@@ -1,6 +1,8 @@
 import { Router } from "express";
+import bcrypt from "bcryptjs";
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
-import { requireAuth, requireRole } from "../middleware/auth";
+import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 router.use(requireAuth);
@@ -11,6 +13,32 @@ router.use(requireAuth);
 // they're building without getting real admin visibility into orders/users.
 const adminOnly = requireRole("ADMIN", "SUPER_ADMIN");
 const adminOrStaffPin = requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN");
+// Creating/editing/deleting staff accounts is the most sensitive action in the
+// panel (it can mint new admins), so it's gated tighter than the rest of admin.
+const superAdminOnly = requireRole("SUPER_ADMIN");
+// Order fulfillment is Support's day-to-day job, not just Admin's.
+const supportOrAdmin = requireRole("SUPPORT", "ADMIN", "SUPER_ADMIN");
+
+// The 4 staff/admin tiers assignable from the panel -- CUSTOMER/BUSINESS are
+// storefront self-registration roles and can't be created here.
+const STAFF_ROLES = ["WAREHOUSE_STAFF", "SUPPORT", "ADMIN", "SUPER_ADMIN"] as const;
+
+const createUserSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.enum(STAFF_ROLES),
+});
+
+const updateUserSchema = z.object({
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  role: z.enum(STAFF_ROLES).optional(),
+  wholesaleTier: z.string().optional(),
+  wholesaleDiscountPct: z.number().optional(),
+  isBusinessAccount: z.boolean().optional(),
+});
 
 // Dashboard summary
 router.get("/analytics/summary", adminOnly, async (_req, res) => {
@@ -61,13 +89,65 @@ router.get("/users", adminOnly, async (req, res) => {
   res.json(users);
 });
 
-router.patch("/users/:id", adminOnly, async (req, res) => {
-  const { role, wholesaleTier, wholesaleDiscountPct, isBusinessAccount } = req.body ?? {};
-  const user = await prisma.user.update({
-    where: { id: req.params.id },
-    data: { role, wholesaleTier, wholesaleDiscountPct, isBusinessAccount },
+router.post("/users", superAdminOnly, async (req, res) => {
+  const parsed = createUserSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { email, password, firstName, lastName, role } = parsed.data;
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) return res.status(409).json({ error: "An account with this email already exists" });
+
+  const passwordHash = await bcrypt.hash(password, 12);
+  const user = await prisma.user.create({
+    data: { email, passwordHash, firstName, lastName, role, emailVerified: true },
+    select: { id: true, email: true, firstName: true, lastName: true, role: true, isBusinessAccount: true, companyName: true, createdAt: true },
   });
-  res.json(user);
+  res.status(201).json(user);
+});
+
+router.patch("/users/:id", superAdminOnly, async (req: AuthedRequest, res) => {
+  const parsed = updateUserSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  if (parsed.data.role && parsed.data.role !== "SUPER_ADMIN") {
+    const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { role: true } });
+    if (target?.role === "SUPER_ADMIN") {
+      const remaining = await prisma.user.count({ where: { role: "SUPER_ADMIN", id: { not: req.params.id } } });
+      if (remaining === 0) return res.status(400).json({ error: "Can't demote the last Super Admin." });
+    }
+  }
+
+  try {
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: parsed.data,
+      select: { id: true, email: true, firstName: true, lastName: true, role: true, isBusinessAccount: true, companyName: true, createdAt: true },
+    });
+    res.json(user);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/users/:id", superAdminOnly, async (req: AuthedRequest, res) => {
+  if (req.params.id === req.user?.userId) {
+    return res.status(400).json({ error: "You can't delete your own account." });
+  }
+
+  const target = await prisma.user.findUnique({ where: { id: req.params.id }, select: { role: true } });
+  if (!target) return res.status(404).json({ error: "User not found" });
+
+  if (target.role === "SUPER_ADMIN") {
+    const remaining = await prisma.user.count({ where: { role: "SUPER_ADMIN", id: { not: req.params.id } } });
+    if (remaining === 0) return res.status(400).json({ error: "Can't delete the last Super Admin." });
+  }
+
+  try {
+    await prisma.user.delete({ where: { id: req.params.id } });
+    res.status(204).send();
+  } catch {
+    res.status(400).json({ error: "This user has orders or other records on file and can't be deleted. Consider changing their role instead." });
+  }
 });
 
 // Inventory
@@ -274,7 +354,7 @@ router.post("/products/import", adminOnly, async (req, res) => {
 });
 
 // Orders queue
-router.get("/orders", adminOnly, async (req, res) => {
+router.get("/orders", supportOrAdmin, async (req, res) => {
   const { status } = req.query as Record<string, string>;
   const orders = await prisma.order.findMany({
     where: status ? { status: status as any } : undefined,
@@ -282,6 +362,27 @@ router.get("/orders", adminOnly, async (req, res) => {
     include: { user: { select: { email: true, companyName: true } }, items: true },
   });
   res.json(orders);
+});
+
+const ORDER_STATUSES = [
+  "PENDING", "PAID", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY",
+  "DELIVERED", "CANCELLED", "REFUNDED", "RETURN_REQUESTED",
+] as const;
+const orderStatusSchema = z.object({ status: z.enum(ORDER_STATUSES) });
+
+router.patch("/orders/:id/status", supportOrAdmin, async (req, res) => {
+  const parsed = orderStatusSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    const order = await prisma.order.update({
+      where: { id: req.params.id },
+      data: { status: parsed.data.status },
+    });
+    res.json(order);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 export default router;

@@ -15,17 +15,38 @@ interface Order {
   items: { id: string }[];
 }
 
+const ORDER_STATUSES = [
+  "PENDING", "PAID", "PROCESSING", "PACKED", "SHIPPED", "OUT_FOR_DELIVERY",
+  "DELIVERED", "CANCELLED", "REFUNDED", "RETURN_REQUESTED",
+];
+
 export default function AdminOrdersPage() {
   const token = useAdminStore((s) => s.token);
   const [orders, setOrders] = useState<Order[]>([]);
   const [error, setError] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
-  useEffect(() => {
+  function load() {
     api
       .get<Order[]>("/admin/orders", token)
       .then(setOrders)
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load orders"));
-  }, [token]);
+  }
+
+  useEffect(load, [token]);
+
+  async function handleStatusChange(id: string, status: string) {
+    setRowBusy(id);
+    setError("");
+    try {
+      await api.patch(`/admin/orders/${id}/status`, { status }, token);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update status");
+    } finally {
+      setRowBusy(null);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -59,7 +80,18 @@ export default function AdminOrdersPage() {
                     {o.paymentStatus}
                   </span>
                 </td>
-                <td className="px-4 py-2.5 text-ink-soft">{o.status}</td>
+                <td className="px-4 py-2.5">
+                  <select
+                    className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-ink-soft outline-none focus:border-brand-red"
+                    value={o.status}
+                    disabled={rowBusy === o.id}
+                    onChange={(e) => handleStatusChange(o.id, e.target.value)}
+                  >
+                    {ORDER_STATUSES.map((s) => (
+                      <option key={s} value={s}>{s.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </td>
                 <td className="px-4 py-2.5 text-right font-semibold text-ink">€{o.totalEur.toFixed(2)}</td>
               </tr>
             ))}

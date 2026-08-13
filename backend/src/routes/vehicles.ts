@@ -1,11 +1,57 @@
 import { Router } from "express";
+import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { requireAuth, requireRole } from "../middleware/auth";
 
 const router = Router();
+const adminOnly = requireRole("ADMIN", "SUPER_ADMIN");
+
+function slugify(s: string) {
+  return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
 
 router.get("/makes", async (_req, res) => {
   const makes = await prisma.vehicleMake.findMany({ orderBy: { name: "asc" } });
   res.json(makes);
+});
+
+const makeWriteSchema = z.object({
+  name: z.string().min(1),
+  logoUrl: z.string().optional(),
+});
+
+router.post("/makes", requireAuth, adminOnly, async (req, res) => {
+  const parsed = makeWriteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const make = await prisma.vehicleMake.create({
+      data: { name: parsed.data.name, slug: slugify(parsed.data.name), logoUrl: parsed.data.logoUrl },
+    });
+    res.status(201).json(make);
+  } catch (err: any) {
+    res.status(400).json({ error: err.code === "P2002" ? `Make "${parsed.data.name}" already exists.` : err.message });
+  }
+});
+
+router.patch("/makes/:id", requireAuth, adminOnly, async (req, res) => {
+  const parsed = makeWriteSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const make = await prisma.vehicleMake.update({
+      where: { id: req.params.id },
+      data: { ...parsed.data, ...(parsed.data.name ? { slug: slugify(parsed.data.name) } : {}) },
+    });
+    res.json(make);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/makes/:id", requireAuth, adminOnly, async (req, res) => {
+  const modelCount = await prisma.vehicleModel.count({ where: { makeId: req.params.id } });
+  if (modelCount > 0) return res.status(400).json({ error: `Can't delete: this make has ${modelCount} model(s). Delete those first.` });
+  await prisma.vehicleMake.delete({ where: { id: req.params.id } });
+  res.status(204).send();
 });
 
 router.get("/makes/:makeId/models", async (req, res) => {
@@ -22,6 +68,83 @@ router.get("/models/:modelId/generations", async (req, res) => {
     orderBy: { yearFrom: "desc" },
   });
   res.json(generations);
+});
+
+const modelWriteSchema = z.object({
+  makeId: z.string().min(1),
+  name: z.string().min(1),
+});
+
+router.post("/models", requireAuth, adminOnly, async (req, res) => {
+  const parsed = modelWriteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const model = await prisma.vehicleModel.create({
+      data: { makeId: parsed.data.makeId, name: parsed.data.name, slug: slugify(parsed.data.name) },
+    });
+    res.status(201).json(model);
+  } catch (err: any) {
+    res.status(400).json({ error: err.code === "P2002" ? `Model "${parsed.data.name}" already exists for this make.` : err.message });
+  }
+});
+
+router.patch("/models/:id", requireAuth, adminOnly, async (req, res) => {
+  const parsed = modelWriteSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const model = await prisma.vehicleModel.update({
+      where: { id: req.params.id },
+      data: { ...parsed.data, ...(parsed.data.name ? { slug: slugify(parsed.data.name) } : {}) },
+    });
+    res.json(model);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/models/:id", requireAuth, adminOnly, async (req, res) => {
+  const generationCount = await prisma.vehicleGeneration.count({ where: { modelId: req.params.id } });
+  if (generationCount > 0) return res.status(400).json({ error: `Can't delete: this model has ${generationCount} generation(s). Delete those first.` });
+  await prisma.vehicleModel.delete({ where: { id: req.params.id } });
+  res.status(204).send();
+});
+
+const generationWriteSchema = z.object({
+  modelId: z.string().min(1),
+  name: z.string().min(1),
+  yearFrom: z.number().int(),
+  yearTo: z.number().int().nullable().optional(),
+  bodyType: z.string().optional(),
+});
+
+router.post("/generations", requireAuth, adminOnly, async (req, res) => {
+  const parsed = generationWriteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const generation = await prisma.vehicleGeneration.create({ data: parsed.data });
+    res.status(201).json(generation);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.patch("/generations/:id", requireAuth, adminOnly, async (req, res) => {
+  const parsed = generationWriteSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const generation = await prisma.vehicleGeneration.update({ where: { id: req.params.id }, data: parsed.data });
+    res.json(generation);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/generations/:id", requireAuth, adminOnly, async (req, res) => {
+  const compatCount = await prisma.productCompatibility.count({ where: { engine: { generationId: req.params.id } } });
+  if (compatCount > 0) return res.status(400).json({ error: `Can't delete: ${compatCount} product(s) are marked compatible with this generation. Remove that fitment first.` });
+
+  await prisma.vehicleGeneration.delete({ where: { id: req.params.id } });
+  res.status(204).send();
 });
 
 router.get("/generations/:generationId/engines", async (req, res) => {

@@ -27,7 +27,7 @@ interface AdminStoreState {
   logout: () => void;
 }
 
-const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN"];
+const ADMIN_ROLES = ["ADMIN", "SUPER_ADMIN", "WAREHOUSE_STAFF", "SUPPORT"];
 
 export const useAdminStore = create<AdminStoreState>()(
   persist(

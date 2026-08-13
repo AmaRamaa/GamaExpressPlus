@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, FolderTree } from "lucide-react";
+import { Plus, FolderTree, Pencil, Trash2, Check, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
@@ -19,6 +19,10 @@ export default function AdminCategoriesPage() {
   const [parentId, setParentId] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [rowBusy, setRowBusy] = useState<string | null>(null);
 
   function load() {
     api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
@@ -51,6 +55,79 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  function startEdit(c: Category) {
+    setEditingId(c.id);
+    setEditName(c.name);
+  }
+
+  async function saveEdit(id: string) {
+    if (!editName.trim()) return;
+    setRowBusy(id);
+    setError("");
+    try {
+      await api.patch(`/catalog/categories/${id}`, { name: editName.trim(), slug: slugify(editName) }, token);
+      setEditingId(null);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to update category");
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete "${name}"?`)) return;
+    setRowBusy(id);
+    setError("");
+    try {
+      await api.delete(`/catalog/categories/${id}`, token);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to delete category");
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
+  function CategoryRow({ c, indent }: { c: Category; indent: boolean }) {
+    return (
+      <li className={`px-4 py-2.5 ${indent ? "pl-10" : ""}`}>
+        <div className="flex items-center gap-3">
+          {editingId === c.id ? (
+            <>
+              <input
+                className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand-red"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                autoFocus
+              />
+              <button onClick={() => saveEdit(c.id)} disabled={rowBusy === c.id} aria-label="Save" className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-40">
+                <Check size={16} />
+              </button>
+              <button onClick={() => setEditingId(null)} aria-label="Cancel" className="rounded p-1.5 text-slate-400 hover:bg-slate-100">
+                <X size={16} />
+              </button>
+            </>
+          ) : (
+            <>
+              <FolderTree size={14} className="text-slate-400" />
+              <span className="text-sm font-medium text-ink">{indent ? "↳ " : ""}{c.name}</span>
+              <span className="text-xs text-ink-soft">/{c.slug}</span>
+              <div className="ml-auto flex gap-0.5">
+                <button onClick={() => startEdit(c)} aria-label="Edit category" className="rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-ink">
+                  <Pencil size={15} />
+                </button>
+                <button onClick={() => handleDelete(c.id, c.name)} disabled={rowBusy === c.id} aria-label="Delete category" className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </li>
+    );
+  }
+
   return (
     <div className="max-w-2xl space-y-6">
       <div>
@@ -81,20 +158,10 @@ export default function AdminCategoriesPage() {
       <div className="rounded-xl border border-slate-200 bg-white shadow-soft">
         <ul className="divide-y divide-slate-100">
           {categories.map((c) => (
-            <li key={c.id} className="px-4 py-2.5">
-              <div className="flex items-center gap-3">
-                <FolderTree size={14} className="text-slate-400" />
-                <span className="text-sm font-medium text-ink">{c.name}</span>
-                <span className="text-xs text-ink-soft">/{c.slug}</span>
-              </div>
-              {c.children?.length > 0 && (
-                <ul className="ml-6 mt-1.5 space-y-1">
-                  {c.children.map((sub) => (
-                    <li key={sub.id} className="text-xs text-ink-soft">↳ {sub.name}</li>
-                  ))}
-                </ul>
-              )}
-            </li>
+            <div key={c.id}>
+              <CategoryRow c={c} indent={false} />
+              {c.children?.map((sub) => <CategoryRow key={sub.id} c={sub} indent />)}
+            </div>
           ))}
           {categories.length === 0 && <li className="px-4 py-6 text-center text-sm text-ink-soft">No categories yet.</li>}
         </ul>
