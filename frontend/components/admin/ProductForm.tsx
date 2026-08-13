@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
-import { processImage } from "@/lib/imageProcessing";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
@@ -15,7 +14,7 @@ interface PendingUpload {
   id: string;
   previewUrl: string;
   fileName: string;
-  status: "processing" | "uploading" | "error";
+  status: "uploading" | "error";
   errorMessage?: string;
 }
 interface VehicleMake { id: string; name: string }
@@ -80,10 +79,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [justCreatedSku, setJustCreatedSku] = useState("");
+  const [justCreatedPartNumber, setJustCreatedPartNumber] = useState("");
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState("");
-  const [autoRemoveBg, setAutoRemoveBg] = useState(true);
-  const [autoWatermark, setAutoWatermark] = useState(true);
   const [rotatingUrl, setRotatingUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
@@ -159,21 +157,15 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     Array.from(fileList).forEach((file) => {
       const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const previewUrl = URL.createObjectURL(file);
-      setPendingUploads((prev) => [...prev, { id, previewUrl, fileName: file.name, status: "processing" }]);
+      setPendingUploads((prev) => [...prev, { id, previewUrl, fileName: file.name, status: "uploading" }]);
       uploadOneFile(id, file);
     });
   }
 
   async function uploadOneFile(id: string, file: File) {
     try {
-      let toUpload: Blob = file;
-      if (autoRemoveBg || autoWatermark) {
-        toUpload = await processImage(file, { removeBg: autoRemoveBg, watermark: autoWatermark });
-      }
-      setPendingUploads((prev) => prev.map((p) => (p.id === id ? { ...p, status: "uploading" } : p)));
-
       const formData = new FormData();
-      formData.append("file", toUpload, file.name);
+      formData.append("file", file, file.name);
       const data = await api.upload<{ url: string; publicId?: string }>("/uploads", formData, token);
       // Functional update: parallel uploads resolve in any order, so this
       // must append onto the latest state, not a `values` closed over when
@@ -278,12 +270,13 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     e.preventDefault();
     setError("");
     setJustCreatedSku("");
+    setJustCreatedPartNumber("");
 
     if (!values.sku.trim()) {
       setError("SKU is required.");
       return;
     }
-    if (pendingUploads.some((p) => p.status === "uploading" || p.status === "processing")) {
+    if (pendingUploads.some((p) => p.status === "uploading")) {
       setError("Wait for photos to finish uploading first.");
       return;
     }
@@ -291,6 +284,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
     const payload = {
       sku: values.sku.trim(),
+      description: values.description.trim() || undefined,
       images: {
         create: values.images
           .filter((img) => img.url.trim())
@@ -301,8 +295,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
 
     setSaving(true);
     try {
-      await api.post("/products", payload, token);
+      const created = await api.post<{ partNumber: string }>("/products", payload, token);
       setJustCreatedSku(values.sku.trim());
+      setJustCreatedPartNumber(created.partNumber || "");
       setValues({ ...EMPTY });
       setPendingUploads([]);
     } catch (err) {
@@ -316,35 +311,21 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     e.preventDefault();
     setError("");
 
-    const priceEur = Number(values.priceEur);
-    const stockQuantity = Number(values.stockQuantity);
-    if (!values.sku.trim() || !values.title.trim() || !values.partNumber.trim()) {
-      setError("SKU, title, and part number are required.");
-      return;
-    }
-    if (!values.brandId || !values.categoryId) {
-      setError("Select a brand and category.");
-      return;
-    }
-    if (!Number.isFinite(priceEur) || priceEur < 0) {
-      setError("Price must be a non-negative number.");
-      return;
-    }
-
+    const stockQuantity = Number(values.stockQuantity) || 0;
     const stockStatus = stockQuantity === 0 ? "OUT_OF_STOCK" : stockQuantity <= Number(values.lowStockThreshold || 5) ? "LOW_STOCK" : "IN_STOCK";
 
     const payload = {
-      sku: values.sku.trim(),
-      slug: values.slug.trim() || slugify(values.sku),
-      title: values.title.trim(),
+      sku: values.sku.trim() || undefined,
+      slug: values.slug.trim() || (values.sku.trim() ? slugify(values.sku) : undefined),
+      title: values.title.trim() || undefined,
       shortDescription: values.shortDescription.trim() || undefined,
       description: values.description.trim() || undefined,
-      categoryId: values.categoryId,
-      brandId: values.brandId,
-      partNumber: values.partNumber.trim(),
+      categoryId: values.categoryId || undefined,
+      brandId: values.brandId || undefined,
+      partNumber: values.partNumber.trim() || undefined,
       manufacturerNumber: values.manufacturerNumber.trim() || undefined,
       oemNumbers: values.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean),
-      priceEur,
+      priceEur: values.priceEur.trim() ? Number(values.priceEur) : undefined,
       discountPriceEur: values.discountPriceEur.trim() ? Number(values.discountPriceEur) : undefined,
       stockQuantity,
       lowStockThreshold: Number(values.lowStockThreshold) || 5,
@@ -382,7 +363,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       <form onSubmit={handleFastEntrySubmit} className="space-y-6">
         {justCreatedSku && (
           <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
-            Added "{justCreatedSku}". An admin will fill in the details later — keep going.
+            Added "{justCreatedSku}"{justCreatedPartNumber ? <> — part number <span className="part-code font-semibold">{justCreatedPartNumber}</span></> : null}. An admin will fill in the details later — keep going.
           </p>
         )}
         {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
@@ -397,6 +378,13 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             placeholder="Scan or type the SKU"
             autoFocus
             required
+          />
+          <label className={`${labelClass} mt-4`}>Description</label>
+          <textarea
+            className={`${inputClass} min-h-24`}
+            value={values.description}
+            onChange={(e) => set("description", e.target.value)}
+            placeholder="Optional notes about this part"
           />
         </div>
 
@@ -420,16 +408,6 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           >
             <Upload size={16} /> Choose photos from phone
           </button>
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-            <label className="flex items-center gap-1.5 text-xs text-ink-soft">
-              <input type="checkbox" checked={autoRemoveBg} onChange={(e) => setAutoRemoveBg(e.target.checked)} />
-              Remove background
-            </label>
-            <label className="flex items-center gap-1.5 text-xs text-ink-soft">
-              <input type="checkbox" checked={autoWatermark} onChange={(e) => setAutoWatermark(e.target.checked)} />
-              Add watermark
-            </label>
-          </div>
           {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
 
           {(pendingUploads.length > 0 || values.images.length > 0) && (
@@ -486,7 +464,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                   ) : (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50">
                       <Loader2 size={18} className="animate-spin text-white" />
-                      <span className="text-[8px] leading-tight text-white">{p.status === "processing" ? "Processing…" : "Uploading…"}</span>
+                      <span className="text-[8px] leading-tight text-white">Uploading…</span>
                     </div>
                   )}
                 </div>
@@ -515,7 +493,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         <h2 className="mb-4 font-display text-sm font-semibold text-ink">Basic info</h2>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className={labelClass}>Title *</label>
+            <label className={labelClass}>Title</label>
             <input
               className={inputClass}
               value={values.title}
@@ -523,7 +501,6 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                 set("title", e.target.value);
                 if (!isEdit && !values.slug) set("slug", slugify(e.target.value));
               }}
-              required
             />
           </div>
           <div>
@@ -531,12 +508,12 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             <input className={inputClass} value={values.slug} onChange={(e) => set("slug", e.target.value)} placeholder="auto-generated from title" />
           </div>
           <div>
-            <label className={labelClass}>SKU *</label>
-            <input className={inputClass} value={values.sku} onChange={(e) => set("sku", e.target.value)} required />
+            <label className={labelClass}>SKU</label>
+            <input className={inputClass} value={values.sku} onChange={(e) => set("sku", e.target.value)} />
           </div>
           <div>
-            <label className={labelClass}>Part number *</label>
-            <input className={inputClass} value={values.partNumber} onChange={(e) => set("partNumber", e.target.value)} required />
+            <label className={labelClass}>Part number</label>
+            <input className={inputClass} value={values.partNumber} onChange={(e) => set("partNumber", e.target.value)} />
           </div>
           <div>
             <label className={labelClass}>Manufacturer number</label>
@@ -547,8 +524,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             <input className={inputClass} value={values.oemNumbers} onChange={(e) => set("oemNumbers", e.target.value)} />
           </div>
           <div>
-            <label className={labelClass}>Brand *</label>
-            <select className={inputClass} value={values.brandId} onChange={(e) => set("brandId", e.target.value)} required>
+            <label className={labelClass}>Brand</label>
+            <select className={inputClass} value={values.brandId} onChange={(e) => set("brandId", e.target.value)}>
               <option value="">Select brand</option>
               {brands.map((b) => (
                 <option key={b.id} value={b.id}>{b.name}</option>
@@ -556,8 +533,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             </select>
           </div>
           <div>
-            <label className={labelClass}>Category *</label>
-            <select className={inputClass} value={values.categoryId} onChange={(e) => set("categoryId", e.target.value)} required>
+            <label className={labelClass}>Category</label>
+            <select className={inputClass} value={values.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
               <option value="">Select category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -585,8 +562,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         <h2 className="mb-4 font-display text-sm font-semibold text-ink">Pricing & stock</h2>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div>
-            <label className={labelClass}>Price (EUR) *</label>
-            <input type="number" step="0.01" min="0" className={inputClass} value={values.priceEur} onChange={(e) => set("priceEur", e.target.value)} required />
+            <label className={labelClass}>Price (EUR)</label>
+            <input type="number" step="0.01" min="0" className={inputClass} value={values.priceEur} onChange={(e) => set("priceEur", e.target.value)} />
           </div>
           <div>
             <label className={labelClass}>Discount price (EUR)</label>
@@ -637,16 +614,6 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             >
               <Upload size={16} /> Choose photos from phone
             </button>
-            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-              <label className="flex items-center gap-1.5 text-xs text-ink-soft">
-                <input type="checkbox" checked={autoRemoveBg} onChange={(e) => setAutoRemoveBg(e.target.checked)} />
-                Remove background
-              </label>
-              <label className="flex items-center gap-1.5 text-xs text-ink-soft">
-                <input type="checkbox" checked={autoWatermark} onChange={(e) => setAutoWatermark(e.target.checked)} />
-                Add watermark
-              </label>
-            </div>
             {uploadError && <p className="mt-2 text-xs text-red-600">{uploadError}</p>}
 
             {pendingUploads.length > 0 && (
@@ -668,7 +635,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                     ) : (
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-black/50">
                         <Loader2 size={18} className="animate-spin text-white" />
-                        <span className="text-[8px] leading-tight text-white">{p.status === "processing" ? "Processing…" : "Uploading…"}</span>
+                        <span className="text-[8px] leading-tight text-white">Uploading…</span>
                       </div>
                     )}
                   </div>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, Search, Trash2, Pencil, Wand2 } from "lucide-react";
+import { Plus, Search, Trash2, Pencil } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
@@ -76,9 +76,6 @@ export default function AdminProductsPage() {
           <p className="text-sm text-ink-soft">{data ? `${data.total} products` : "Loading…"}</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/admin/reprocess-photos" className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-ink hover:bg-slate-50">
-            <Wand2 size={16} /> Reprocess all photos
-          </Link>
           <Link href="/admin/products/new" className="flex items-center gap-1.5 rounded-lg bg-brand-red px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark">
             <Plus size={16} /> Add product
           </Link>

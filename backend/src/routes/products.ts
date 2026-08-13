@@ -10,20 +10,20 @@ const router = Router();
 // tampering with fields Prisma would otherwise happily write straight from
 // req.body, like costEur or relation ids outside the intended shape).
 const productWriteSchema = z.object({
-  sku: z.string().min(1),
-  slug: z.string().min(1),
-  title: z.string().min(1),
+  sku: z.string().min(1).optional(),
+  slug: z.string().min(1).optional(),
+  title: z.string().min(1).optional(),
   shortDescription: z.string().optional(),
   description: z.string().optional(),
   technicalInfo: z.string().optional(),
   installationNotes: z.string().optional(),
-  categoryId: z.string().min(1),
-  brandId: z.string().min(1),
+  categoryId: z.string().min(1).optional(),
+  brandId: z.string().min(1).optional(),
   oemNumbers: z.array(z.string()).optional().default([]),
-  partNumber: z.string().min(1),
+  partNumber: z.string().min(1).optional(),
   manufacturerNumber: z.string().optional(),
   barcode: z.string().optional(),
-  priceEur: z.number().min(0),
+  priceEur: z.number().min(0).optional(),
   discountPriceEur: z.number().min(0).optional(),
   costEur: z.number().min(0).optional(),
   vatRatePct: z.number().min(0).max(100).optional(),
@@ -69,6 +69,7 @@ const productWriteSchema = z.object({
 // unsorted product is never live on the storefront in the meantime.
 const staffFastEntrySchema = z.object({
   sku: z.string().min(1),
+  description: z.string().optional(),
   images: z
     .object({
       create: z
@@ -86,6 +87,22 @@ const staffFastEntrySchema = z.object({
 
 function slugify(s: string) {
   return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || "item";
+}
+
+// "Daily code" -- a running G-001, G-002, ... counter assigned to the
+// Part Number field for products entered without a real one on hand. Not
+// actually reset daily; a running counter avoids re-using a number (and
+// therefore colliding on the unique-ish partNumber) if entry spans more
+// than one day. Computed from the current max each time rather than a
+// separate counter row, so it can't drift out of sync with real data.
+async function getNextDailyCode() {
+  const last = await prisma.product.findFirst({
+    where: { partNumber: { startsWith: "G-" } },
+    orderBy: { partNumber: "desc" },
+    select: { partNumber: true },
+  });
+  const lastNum = last ? parseInt(last.partNumber.replace("G-", ""), 10) || 0 : 0;
+  return `G-${String(lastNum + 1).padStart(3, "0")}`;
 }
 
 // Deliberately NOT cached across requests: if either row is ever deleted
@@ -209,12 +226,14 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
     for (let attempt = 0; attempt < 5; attempt++) {
       const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
       try {
+        const partNumber = await getNextDailyCode();
         const product = await prisma.product.create({
           data: {
             sku: parsed.data.sku,
             slug,
             title: `[Draft] ${parsed.data.sku}`,
-            partNumber: parsed.data.sku,
+            partNumber,
+            description: parsed.data.description?.trim() || undefined,
             categoryId,
             brandId,
             priceEur: 0,
@@ -238,12 +257,38 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
   const parsed = productWriteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  try {
-    const product = await prisma.product.create({ data: parsed.data });
-    res.status(201).json(product);
-  } catch (err: any) {
-    res.status(400).json({ error: err.message });
+  // Nothing is required anymore -- fill in anything left blank the same way
+  // the staff fast-entry path does, so an admin can save a product with as
+  // little or as much detail as they have on hand right now.
+  const { categoryId: defaultCategoryId, brandId: defaultBrandId } = await getPlaceholderCategoryAndBrand();
+  const sku = parsed.data.sku?.trim() || await getNextDailyCode();
+  const baseSlug = slugify(parsed.data.slug || parsed.data.title || sku);
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
+    try {
+      const product = await prisma.product.create({
+        data: {
+          ...parsed.data,
+          sku,
+          slug,
+          title: parsed.data.title?.trim() || `[Draft] ${sku}`,
+          partNumber: parsed.data.partNumber?.trim() || sku,
+          categoryId: parsed.data.categoryId || defaultCategoryId,
+          brandId: parsed.data.brandId || defaultBrandId,
+          priceEur: parsed.data.priceEur ?? 0,
+        },
+      });
+      return res.status(201).json(product);
+    } catch (err: any) {
+      if (err.code === "P2002" && err.meta?.target?.includes("slug")) continue;
+      if (err.code === "P2002" && err.meta?.target?.includes("sku")) {
+        return res.status(400).json({ error: `A product with SKU "${sku}" already exists.` });
+      }
+      return res.status(400).json({ error: err.message });
+    }
   }
+  return res.status(500).json({ error: "Could not generate a unique slug, try again." });
 });
 
 router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), async (req: AuthedRequest, res) => {
