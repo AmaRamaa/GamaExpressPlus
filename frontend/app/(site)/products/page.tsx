@@ -20,6 +20,8 @@ function ProductsPageContent() {
   const categorySlug = searchParams.get("category") || "";
   const brandSlug = searchParams.get("brand") || "";
   const generationId = searchParams.get("generationId") || "";
+  const modelId = searchParams.get("modelId") || "";
+  const makeId = searchParams.get("makeId") || "";
   const featured = searchParams.get("featured") || "";
 
   const [selectedCategory, setSelectedCategory] = useState(categorySlug);
@@ -37,7 +39,11 @@ function ProductsPageContent() {
   useEffect(() => {
     const params = new URLSearchParams({ limit: "48" });
     if (q) params.set("q", q);
+    // Only the most specific vehicle filter present is sent -- generation is
+    // exact, model/make are progressively broader fallbacks (see VehicleFinder).
     if (generationId) params.set("generationId", generationId);
+    else if (modelId) params.set("modelId", modelId);
+    else if (makeId) params.set("makeId", makeId);
     if (selectedCategory) params.set("category", selectedCategory);
     if (brandSlug) params.set("brand", brandSlug);
     if (featured) params.set("featured", featured);
@@ -55,13 +61,13 @@ function ProductsPageContent() {
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [q, generationId, selectedCategory, brandSlug, featured, sort, maxPrice]);
+  }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice]);
 
   return (
     <div className="container-page py-8">
       <div className="mb-6">
         <h1 className="font-display text-2xl font-bold text-ink">
-          {q ? `Results for "${q}"` : generationId ? "Parts compatible with your vehicle" : "All parts"}
+          {q ? `Results for "${q}"` : generationId || modelId || makeId ? "Parts compatible with your vehicle" : "All parts"}
         </h1>
         <p className="text-sm text-ink-soft">{loading ? "Loading…" : `${total} products found`}</p>
       </div>

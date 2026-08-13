@@ -137,7 +137,7 @@ function withRatingSummary<T extends { reviews?: { rating: number }[] }>(product
 // GET /api/products?category=&brand=&engineId=&minPrice=&maxPrice=&q=&sort=&page=&limit=
 router.get("/", async (req, res) => {
   const {
-    category, brand, engineId, generationId, minPrice, maxPrice, q, featured, ids,
+    category, brand, engineId, generationId, modelId, makeId, minPrice, maxPrice, q, featured, ids,
     sort = "relevance", page = "1", limit = "24",
   } = req.query as Record<string, string>;
 
@@ -145,7 +145,12 @@ router.get("/", async (req, res) => {
   if (category) where.category = { slug: category };
   if (brand) where.brand = { slug: brand };
   if (engineId) where.compatibility = { some: { engineId } };
+  // Vehicle filters get progressively broader -- generationId is exact,
+  // modelId/makeId let the Vehicle Finder search without the user having to
+  // pin down a specific generation (or even model) first.
   if (generationId) where.compatibility = { some: { engine: { generationId } } };
+  else if (modelId) where.compatibility = { some: { engine: { generation: { modelId } } } };
+  else if (makeId) where.compatibility = { some: { engine: { generation: { model: { makeId } } } } };
   if (featured === "true") where.isFeatured = true;
   if (ids) where.id = { in: ids.split(",").filter(Boolean) };
   if (minPrice || maxPrice) {

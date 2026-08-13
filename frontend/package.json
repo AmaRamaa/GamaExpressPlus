@@ -16,6 +16,7 @@
     "@vercel/speed-insights": "^2.0.0",
     "clsx": "^2.1.1",
     "framer-motion": "^11.5.4",
+    "fuse.js": "^7.5.0",
     "lucide-react": "^0.446.0",
     "next": "^15.5.21",
     "papaparse": "^5.5.4",

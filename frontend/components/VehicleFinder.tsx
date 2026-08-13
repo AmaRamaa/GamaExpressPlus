@@ -6,6 +6,7 @@ import { CircleGauge, ChevronDown } from "lucide-react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { useT } from "@/lib/i18n";
+import VehicleAutocomplete, { type VehicleSearchEntry } from "./VehicleAutocomplete";
 
 interface Make {
   id: string;
@@ -127,18 +128,44 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
     return null;
   })();
 
-  const canSearch = !!matchedGeneration;
+  // Nothing here is actually required to search -- a manufacturer alone is
+  // enough to browse. Model and year just narrow the results further, and an
+  // exact year match (when available) is the most precise of the three.
+  const canSearch = !!makeId;
 
   function handleSearch() {
-    if (!make || !model || !matchedGeneration || year === null) return;
+    if (!make) return;
+    if (matchedGeneration && model && year !== null) {
+      setVehicle({
+        makeId: make.id, makeName: make.name,
+        modelId: model.id, modelName: model.name,
+        generationId: matchedGeneration.id, generationName: matchedGeneration.name,
+        variant: matchedGeneration.bodyType ?? undefined,
+        year,
+      });
+      router.push(`/products?generationId=${matchedGeneration.id}`);
+    } else if (model) {
+      router.push(`/products?modelId=${model.id}`);
+    } else {
+      router.push(`/products?makeId=${make.id}`);
+    }
+  }
+
+  // Picking a suggestion from the typeahead resolves straight to a
+  // generation -- skip the cascading dropdowns entirely and go straight to
+  // an exact-match search.
+  function handleAutocompleteSelect(entry: VehicleSearchEntry) {
+    setMakeId(entry.makeId);
+    setModelId(entry.modelId);
+    setYearInput(String(entry.yearFrom));
     setVehicle({
-      makeId: make.id, makeName: make.name,
-      modelId: model.id, modelName: model.name,
-      generationId: matchedGeneration.id, generationName: matchedGeneration.name,
-      variant: matchedGeneration.bodyType ?? undefined,
-      year,
+      makeId: entry.makeId, makeName: entry.makeName,
+      modelId: entry.modelId, modelName: entry.modelName,
+      generationId: entry.generationId, generationName: entry.generationName,
+      variant: entry.bodyType ?? undefined,
+      year: entry.yearFrom,
     });
-    router.push(`/products?generationId=${matchedGeneration.id}`);
+    router.push(`/products?generationId=${entry.generationId}`);
   }
 
   const selectClass =
@@ -152,6 +179,15 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
           <h3 className="font-display text-lg font-semibold text-ink">{t.vehicleFinder.title}</h3>
         </div>
       )}
+
+      <VehicleAutocomplete placeholder={t.vehicleFinder.typeYourCar} onSelect={handleAutocompleteSelect} />
+
+      <div className="my-3 flex items-center gap-3">
+        <div className="h-px flex-1 bg-surface-border" />
+        <span className="text-xs uppercase tracking-wide text-ink-soft">{t.vehicleFinder.orChooseManually}</span>
+        <div className="h-px flex-1 bg-surface-border" />
+      </div>
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3">
         <div className="relative" ref={makeMenuRef}>
           <button
@@ -225,7 +261,13 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
         disabled={!canSearch}
         className="mt-4 w-full rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:bg-surface-border disabled:text-ink-soft"
       >
-        {t.vehicleFinder.showParts}
+        {matchedGeneration && model && year !== null
+          ? t.vehicleFinder.showParts
+          : model
+            ? `${t.vehicleFinder.showPartsFor} ${model.name}`
+            : make
+              ? `${t.vehicleFinder.showPartsFor} ${make.name}`
+              : t.vehicleFinder.showParts}
       </button>
     </div>
   );

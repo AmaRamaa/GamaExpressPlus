@@ -15,6 +15,30 @@ router.get("/makes", async (_req, res) => {
   res.json(makes);
 });
 
+// Flattened make+model+generation list for client-side fuzzy search (typing
+// "golf 7" instead of clicking through three cascading dropdowns). The whole
+// tree is small enough (a few hundred to low-thousand generations) to fetch
+// once and search in the browser rather than round-tripping per keystroke.
+router.get("/search-index", async (_req, res) => {
+  const generations = await prisma.vehicleGeneration.findMany({
+    include: { model: { include: { make: true } } },
+    orderBy: [{ model: { make: { name: "asc" } } }, { yearFrom: "desc" }],
+  });
+  res.json(
+    generations.map((g) => ({
+      makeId: g.model.make.id,
+      makeName: g.model.make.name,
+      modelId: g.model.id,
+      modelName: g.model.name,
+      generationId: g.id,
+      generationName: g.name,
+      yearFrom: g.yearFrom,
+      yearTo: g.yearTo,
+      bodyType: g.bodyType,
+    }))
+  );
+});
+
 const makeWriteSchema = z.object({
   name: z.string().min(1),
   logoUrl: z.string().optional(),

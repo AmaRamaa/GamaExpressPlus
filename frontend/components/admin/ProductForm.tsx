@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
+import VehicleAutocomplete, { type VehicleSearchEntry } from "@/components/VehicleAutocomplete";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
@@ -134,6 +135,22 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     const label = `${make.name} ${model.name} ${generation.name} (${generation.yearFrom}–${generation.yearTo ?? "present"})`;
     set("compatibility", [...values.compatibility, { engineId: engine.id, generationId: generation.id, label }]);
     setVMakeId(""); setVModelId(""); setVGenerationId("");
+  }
+
+  // Same as addCompatibility, but for a generation picked directly from the
+  // typeahead -- fetches (and self-heals a placeholder for) its engine
+  // instead of relying on the cascading selects being populated.
+  async function addCompatibilityFromAutocomplete(entry: VehicleSearchEntry) {
+    if (values.compatibility.some((c) => c.generationId === entry.generationId)) return;
+    try {
+      const engines = await api.get<{ id: string }[]>(`/vehicles/generations/${entry.generationId}/engines`);
+      const engine = engines[0];
+      if (!engine) return;
+      const label = `${entry.makeName} ${entry.modelName} ${entry.generationName} (${entry.yearFrom}–${entry.yearTo ?? "present"})`;
+      set("compatibility", [...values.compatibility, { engineId: engine.id, generationId: entry.generationId, label }]);
+    } catch {
+      setError("Could not add that vehicle -- try again.");
+    }
   }
 
   useEffect(() => {
@@ -772,6 +789,12 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             <Car size={16} className="text-brand-red" /> Vehicle compatibility
           </h2>
           <p className="mb-4 text-xs text-ink-soft">So this part shows up when a customer searches by their vehicle.</p>
+
+          <VehicleAutocomplete
+            placeholder="Type a vehicle, e.g. Golf 7"
+            onSelect={addCompatibilityFromAutocomplete}
+            className="mb-3"
+          />
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <select className={inputClass} value={vMakeId} onChange={(e) => { setVMakeId(e.target.value); setVModelId(""); setVGenerationId(""); }}>
