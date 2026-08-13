@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { ZoomIn, X } from "lucide-react";
+import { ZoomIn, X, ChevronLeft, ChevronRight } from "lucide-react";
 
 interface VisualConfig {
   from: string;
@@ -24,16 +24,43 @@ export default function ProductVisual({
   variant = "primary",
   className = "",
   fit = "cover",
+  images,
+  activeIndex = 0,
+  onIndexChange,
 }: {
   categorySlug: string;
   imageUrl?: string;
   variant?: "primary" | "secondary";
   className?: string;
   fit?: "cover" | "contain";
+  // Optional: the full photo set this image belongs to, so the lightbox can
+  // step through them without closing. Omit for single-image contexts
+  // (product cards, cart lines, etc.) where there's nothing to switch to.
+  images?: string[];
+  activeIndex?: number;
+  onIndexChange?: (index: number) => void;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const cfg = visuals[categorySlug] || fallback;
   const gradId = `grad-${categorySlug}-${variant}`;
+  const gallery = images && images.length > 1 ? images : null;
+
+  function showRelative(delta: number) {
+    if (!gallery || !onIndexChange) return;
+    onIndexChange((activeIndex + delta + gallery.length) % gallery.length);
+  }
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setLightboxOpen(false);
+      else if (e.key === "ArrowLeft") showRelative(-1);
+      else if (e.key === "ArrowRight") showRelative(1);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxOpen, activeIndex, gallery]);
 
   if (imageUrl) {
     return (
@@ -67,6 +94,29 @@ export default function ProductVisual({
             >
               <X size={20} />
             </button>
+            {gallery && (
+              <>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); showRelative(-1); }}
+                  aria-label="Previous photo"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 sm:left-5"
+                >
+                  <ChevronLeft size={22} />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); showRelative(1); }}
+                  aria-label="Next photo"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 sm:right-5"
+                >
+                  <ChevronRight size={22} />
+                </button>
+                <span className="absolute bottom-5 left-1/2 -translate-x-1/2 rounded-full bg-black/40 px-3 py-1 text-xs font-medium text-white">
+                  {activeIndex + 1} / {gallery.length}
+                </span>
+              </>
+            )}
             <img
               src={imageUrl}
               alt=""

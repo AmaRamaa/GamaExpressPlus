@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, X, MapPin, Phone } from "lucide-react";
+import { Menu, X, MapPin, Phone, Heart, ShoppingCart } from "lucide-react";
 import { api } from "@/lib/api";
 import { resolveIcon } from "@/lib/icon-map";
 import { useT, LOCALES } from "@/lib/i18n";
@@ -20,6 +20,8 @@ export default function MobileNav() {
   const [categories, setCategories] = useState<CategoryGroup[]>([]);
   const { t, locale, setLocale } = useT();
   const user = useStore((s) => s.user);
+  const cartCount = useStore((s) => s.cart.reduce((n, l) => n + l.quantity, 0));
+  const wishlistCount = useStore((s) => s.wishlist.length);
 
   useEffect(() => {
     if (open && categories.length === 0) {
@@ -59,6 +61,35 @@ export default function MobileNav() {
               >
                 <X size={20} />
               </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 border-b border-surface-border p-2">
+              <Link
+                href="/cart"
+                onClick={() => setOpen(false)}
+                className="relative flex items-center justify-center gap-2 rounded-lg bg-surface-muted px-3 py-2.5 text-sm font-medium text-ink hover:bg-surface-border"
+              >
+                <ShoppingCart size={17} className="text-brand-red" />
+                {t.header.cart}
+                {cartCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-semibold text-white">
+                    {cartCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                href="/account?tab=wishlist"
+                onClick={() => setOpen(false)}
+                className="relative flex items-center justify-center gap-2 rounded-lg bg-surface-muted px-3 py-2.5 text-sm font-medium text-ink hover:bg-surface-border"
+              >
+                <Heart size={17} className="text-brand-red" />
+                {t.header.favorites}
+                {wishlistCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-red px-1 text-[10px] font-semibold text-white">
+                    {wishlistCount}
+                  </span>
+                )}
+              </Link>
             </div>
 
             <nav className="flex-1 p-2">

@@ -78,6 +78,9 @@ export default function ProductDetailPage() {
               imageUrl={product.imageUrls?.[activeImageIndex] ?? product.imageUrl}
               variant="primary"
               fit="contain"
+              images={product.imageUrls}
+              activeIndex={activeImageIndex}
+              onIndexChange={setActiveImageIndex}
             />
           </div>
           {product.imageUrls && product.imageUrls.length > 1 && (

@@ -28,7 +28,7 @@ export default function Header() {
             width={1707}
             height={740}
             priority
-            className="h-16 w-auto object-contain sm:h-20"
+            className="h-11 w-auto object-contain sm:h-14 lg:h-20"
           />
         </Link>
 
@@ -37,28 +37,32 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-1">
-          <LanguageSwitcher />
-          <Link href={user ? "/account" : "/login"} className="flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
+          {/* Below `lg`, everything but the profile link lives in the burger
+              menu instead (see MobileNav) -- keeps the mobile header compact. */}
+          <div className="hidden items-center gap-1 lg:flex">
+            <LanguageSwitcher />
+            <Link href="/account?tab=wishlist" className="relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
+              <Heart size={20} className="text-ink" />
+              <span className="text-[11px] text-ink-soft">{t.header.favorites}</span>
+              {wishlistCount > 0 && (
+                <span className="absolute right-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-semibold text-white">
+                  {wishlistCount}
+                </span>
+              )}
+            </Link>
+            <Link href="/cart" className="relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
+              <ShoppingCart size={20} className="text-ink" />
+              <span className="text-[11px] text-ink-soft">{t.header.cart}</span>
+              {cartCount > 0 && (
+                <span className="absolute right-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-semibold text-white">
+                  {cartCount}
+                </span>
+              )}
+            </Link>
+          </div>
+          <Link href={user ? "/account" : "/login"} className="flex flex-col items-center gap-0.5 rounded-lg px-2.5 py-1.5 hover:bg-surface-muted">
             <User size={20} className={user ? "text-brand-red" : "text-ink"} />
-            <span className="hidden text-[11px] text-ink-soft sm:block">{user ? user.name.split(" ")[0] : t.header.signIn}</span>
-          </Link>
-          <Link href="/account?tab=wishlist" className="relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
-            <Heart size={20} className="text-ink" />
-            <span className="hidden text-[11px] text-ink-soft sm:block">{t.header.favorites}</span>
-            {wishlistCount > 0 && (
-              <span className="absolute right-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-semibold text-white">
-                {wishlistCount}
-              </span>
-            )}
-          </Link>
-          <Link href="/cart" className="relative flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 hover:bg-surface-muted">
-            <ShoppingCart size={20} className="text-ink" />
-            <span className="hidden text-[11px] text-ink-soft sm:block">{t.header.cart}</span>
-            {cartCount > 0 && (
-              <span className="absolute right-1 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-brand-red text-[10px] font-semibold text-white">
-                {cartCount}
-              </span>
-            )}
+            <span className="hidden text-[11px] text-ink-soft lg:block">{user ? user.name.split(" ")[0] : t.header.signIn}</span>
           </Link>
         </div>
       </div>
