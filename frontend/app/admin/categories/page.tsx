@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, FolderTree, Pencil, Trash2, Check, X } from "lucide-react";
+import { Plus, FolderTree, Pencil, Trash2, Check, X, ArrowUp, ArrowDown } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
@@ -9,6 +9,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  sortOrder: number;
   children: Category[];
 }
 
@@ -23,6 +24,7 @@ export default function AdminCategoriesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [moveBusyIds, setMoveBusyIds] = useState<Set<string>>(new Set());
 
   function load() {
     api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
@@ -75,6 +77,30 @@ export default function AdminCategoriesPage() {
     }
   }
 
+  // Siblings may all still share the same sortOrder (0) if it was never set
+  // before, so a plain value-swap between the two moved rows wouldn't do
+  // anything. Reassigning sortOrder = index across the whole group on every
+  // move both fixes that and keeps values compact going forward.
+  async function moveWithinGroup(siblings: Category[], index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= siblings.length) return;
+    const reordered = [...siblings];
+    [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+
+    setMoveBusyIds(new Set([siblings[index].id, siblings[target].id]));
+    setError("");
+    try {
+      await Promise.all(
+        reordered.map((c, i) => (c.sortOrder === i ? Promise.resolve() : api.patch(`/catalog/categories/${c.id}`, { sortOrder: i }, token)))
+      );
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Failed to reorder categories");
+    } finally {
+      setMoveBusyIds(new Set());
+    }
+  }
+
   async function handleDelete(id: string, name: string) {
     if (!confirm(`Delete "${name}"?`)) return;
     setRowBusy(id);
@@ -89,7 +115,8 @@ export default function AdminCategoriesPage() {
     }
   }
 
-  function CategoryRow({ c, indent }: { c: Category; indent: boolean }) {
+  function CategoryRow({ c, indent, siblings, index }: { c: Category; indent: boolean; siblings: Category[]; index: number }) {
+    const moveBusy = moveBusyIds.has(c.id);
     return (
       <li className={`px-4 py-2.5 ${indent ? "pl-10" : ""}`}>
         <div className="flex items-center gap-3">
@@ -110,6 +137,26 @@ export default function AdminCategoriesPage() {
             </>
           ) : (
             <>
+              <div className="flex shrink-0 flex-col gap-0.5">
+                <button
+                  onClick={() => moveWithinGroup(siblings, index, -1)}
+                  disabled={index === 0 || moveBusy}
+                  aria-label="Move up"
+                  title="Move up"
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                >
+                  <ArrowUp size={13} />
+                </button>
+                <button
+                  onClick={() => moveWithinGroup(siblings, index, 1)}
+                  disabled={index === siblings.length - 1 || moveBusy}
+                  aria-label="Move down"
+                  title="Move down"
+                  className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-30"
+                >
+                  <ArrowDown size={13} />
+                </button>
+              </div>
               <FolderTree size={14} className="text-slate-400" />
               <span className="text-sm font-medium text-ink">{indent ? "↳ " : ""}{c.name}</span>
               <span className="text-xs text-ink-soft">/{c.slug}</span>
@@ -157,10 +204,12 @@ export default function AdminCategoriesPage() {
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-soft">
         <ul className="divide-y divide-slate-100">
-          {categories.map((c) => (
+          {categories.map((c, i) => (
             <div key={c.id}>
-              <CategoryRow c={c} indent={false} />
-              {c.children?.map((sub) => <CategoryRow key={sub.id} c={sub} indent />)}
+              <CategoryRow c={c} indent={false} siblings={categories} index={i} />
+              {c.children?.map((sub, si) => (
+                <CategoryRow key={sub.id} c={sub} indent siblings={c.children} index={si} />
+              ))}
             </div>
           ))}
           {categories.length === 0 && <li className="px-4 py-6 text-center text-sm text-ink-soft">No categories yet.</li>}

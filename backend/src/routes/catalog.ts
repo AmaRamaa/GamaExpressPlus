@@ -25,7 +25,7 @@ router.get("/categories", async (_req, res) => {
   const categories = await prisma.category.findMany({
     where: { parentId: null },
     include: {
-      children: { include: { _count: { select: { products: true } } } },
+      children: { include: { _count: { select: { products: true } } }, orderBy: { sortOrder: "asc" } },
       _count: { select: { products: true } },
     },
     orderBy: { sortOrder: "asc" },
