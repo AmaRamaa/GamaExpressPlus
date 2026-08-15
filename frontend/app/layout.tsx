@@ -43,13 +43,13 @@ export const metadata: Metadata = {
     siteName: "Gama Express",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: [{ url: "/emblem-red.png", width: 436, height: 458 }],
+    images: [{ url: "/logo.jpg", width: 1707, height: 740 }],
   },
   twitter: {
     card: "summary_large_image",
     title: SITE_TITLE,
     description: SITE_DESCRIPTION,
-    images: ["/emblem-red.png"],
+    images: ["/logo.jpg"],
   },
 };
 
