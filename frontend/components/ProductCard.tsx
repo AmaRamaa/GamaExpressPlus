@@ -12,12 +12,57 @@ import QuickviewModal from "./QuickviewModal";
 import { useT } from "@/lib/i18n";
 import clsx from "clsx";
 
-export default function ProductCard({ product }: { product: Product }) {
+export default function ProductCard({ product, layout = "grid" }: { product: Product; layout?: "grid" | "list" }) {
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const isWishlisted = useStore((s) => s.wishlist.includes(product.id));
   const [quickviewOpen, setQuickviewOpen] = useState(false);
   const { t } = useT();
+
+  if (layout === "list") {
+    return (
+      <div className="group/row relative flex items-center gap-3 rounded-lg border border-surface-border bg-surface px-3 py-2 shadow-soft transition-shadow hover:shadow-card">
+        {/* No thumbnail in the line itself -- hovering the row floats the
+            photo above it instead, so the list stays dense by default. */}
+        <div className="pointer-events-none absolute -top-2 left-3 z-20 hidden -translate-y-full overflow-hidden rounded-lg border border-surface-border bg-surface shadow-lifted group-hover/row:block">
+          <div className="size-40">
+            <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} fit="contain" />
+          </div>
+        </div>
+
+        {quickviewOpen && <QuickviewModal product={product} onClose={() => setQuickviewOpen(false)} />}
+
+        <StockBadge status={product.stockStatus} />
+
+        <Link href={`/products/${product.slug}`} className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-ink group-hover/row:text-brand-red">{product.title}</span>
+        </Link>
+
+        <span className="hidden shrink-0 text-xs uppercase tracking-wide text-ink-soft md:block">{product.brand.name}</span>
+        <span className="hidden shrink-0 sm:block"><PartCode label="Part No.">{product.partNumber}</PartCode></span>
+
+        <div className="shrink-0"><ProductPrice product={product} /></div>
+
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={() => toggleWishlist(product.id)}
+            aria-label={isWishlisted ? t.common.removeFromFavorites : t.common.saveToFavorites}
+            className="rounded-full p-2 text-ink-soft hover:bg-surface-muted"
+          >
+            <Heart size={15} className={clsx(isWishlisted ? "fill-brand-red text-brand-red" : "")} />
+          </button>
+          <button
+            onClick={() => addToCart(product)}
+            disabled={product.stockStatus === "OUT_OF_STOCK"}
+            aria-label={t.common.addToCart}
+            className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-red text-white transition-colors hover:bg-brand-red-dark disabled:cursor-not-allowed disabled:bg-surface-border"
+          >
+            <ShoppingCart size={14} />
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="group relative flex flex-col rounded-xl border border-surface-border bg-surface p-4 shadow-soft transition-shadow hover:shadow-card">
@@ -31,7 +76,7 @@ export default function ProductCard({ product }: { product: Product }) {
 
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative mb-3 aspect-square overflow-hidden rounded-lg">
-          <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} className="transition-transform duration-300 group-hover:scale-105" />
+          <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} fit="contain" className="transition-transform duration-300 group-hover:scale-105" />
 
           {/* Hover overlay: quickview, matching Riardi's on-hover product actions */}
           <button
