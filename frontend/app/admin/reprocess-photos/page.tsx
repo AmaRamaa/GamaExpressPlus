@@ -155,7 +155,7 @@ export default function ReprocessPhotosPage() {
                 disabled={pending.length === 0}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-50"
               >
-                <Play size={15} /> Start
+                <Play size={15} /> {done > 0 || failed > 0 ? "Continue" : "Start"}
               </button>
             ) : (
               <button

@@ -104,6 +104,11 @@ export function ProductForm({
   const [uploadError, setUploadError] = useState("");
   const [rotatingUrl, setRotatingUrl] = useState<string | null>(null);
   const [bgRemovingUrl, setBgRemovingUrl] = useState<string | null>(null);
+  const [bulkBgRunning, setBulkBgRunning] = useState(false);
+  const [bulkBgDone, setBulkBgDone] = useState(0);
+  const [bulkBgFailed, setBulkBgFailed] = useState(0);
+  const [bulkBgTotal, setBulkBgTotal] = useState(0);
+  const bulkBgStopRef = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
 
@@ -303,6 +308,57 @@ export function ProductForm({
       next[index] = { ...next[index], url: original, originalUrl: undefined };
       return { ...v, images: next };
     });
+  }
+
+  // Runs the same non-destructive removal as the single-photo button across
+  // every photo on this product that hasn't been processed yet. Sequential
+  // (same WASM-in-the-browser reasoning as the site-wide bulk tool), and
+  // stoppable mid-run -- clicking the button again afterward just continues
+  // with whatever's still unprocessed, since already-done photos are
+  // identified by having an originalUrl and get skipped.
+  const bulkBgPending = values.images.filter((img) => img.url && !img.originalUrl).length;
+
+  async function startBulkRemoveBackground() {
+    if (bulkBgRunning) return;
+    const items = values.images
+      .map((img, i) => ({ index: i, url: img.url }))
+      .filter((item) => item.url && !values.images[item.index].originalUrl);
+    if (items.length === 0) return;
+
+    bulkBgStopRef.current = false;
+    setBulkBgRunning(true);
+    setBulkBgDone(0);
+    setBulkBgFailed(0);
+    setBulkBgTotal(items.length);
+    setError("");
+
+    for (const item of items) {
+      if (bulkBgStopRef.current) break;
+      setBgRemovingUrl(item.url);
+      try {
+        const blob = await removeBackgroundFromUrl(item.url);
+        const formData = new FormData();
+        formData.append("file", new File([blob], "no-bg.jpg", { type: "image/jpeg" }));
+        const data = await api.upload<{ url: string }>("/uploads", formData, token);
+        setValues((v) => {
+          const next = [...v.images];
+          const current = next[item.index];
+          if (!current || current.url !== item.url) return v;
+          next[item.index] = { ...current, url: data.url, originalUrl: current.originalUrl || item.url };
+          return { ...v, images: next };
+        });
+        setBulkBgDone((n) => n + 1);
+      } catch {
+        setBulkBgFailed((n) => n + 1);
+      }
+    }
+
+    setBgRemovingUrl(null);
+    setBulkBgRunning(false);
+  }
+
+  function stopBulkRemoveBackground() {
+    bulkBgStopRef.current = true;
   }
 
   async function analyzePhotos() {
@@ -753,6 +809,38 @@ export function ProductForm({
               <Plus size={14} /> Add image URL
             </button>
           </div>
+
+          {isAdmin && values.images.length > 1 && (bulkBgPending > 0 || bulkBgRunning) && (
+            <div className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <Eraser size={14} className="shrink-0 text-ink-soft" />
+              <span className="text-xs text-ink-soft">
+                {bulkBgRunning
+                  ? `Removing backgrounds… ${bulkBgDone + bulkBgFailed}/${bulkBgTotal}${bulkBgFailed ? ` (${bulkBgFailed} failed)` : ""}`
+                  : `${bulkBgPending} photo${bulkBgPending === 1 ? "" : "s"} without a clean background`}
+              </span>
+              <div className="ml-auto">
+                {bulkBgRunning ? (
+                  <button
+                    type="button"
+                    onClick={stopBulkRemoveBackground}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-ink hover:bg-slate-100"
+                  >
+                    Stop
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={startBulkRemoveBackground}
+                    disabled={!!bgRemovingUrl}
+                    className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-ink hover:bg-slate-100 disabled:opacity-50"
+                  >
+                    {bulkBgDone > 0 || bulkBgFailed > 0 ? "Continue" : `Remove all backgrounds (${bulkBgPending})`}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-2">
             {values.images.map((img, i) => (
               <div key={i} className="flex items-center gap-2">
