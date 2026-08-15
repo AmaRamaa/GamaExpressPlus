@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { z } from "zod";
+import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware/auth";
 
@@ -41,6 +42,7 @@ const productWriteSchema = z.object({
         .array(
           z.object({
             url: z.string().min(1),
+            originalUrl: z.string().optional(),
             altText: z.string().optional(),
             sortOrder: z.number().int().optional(),
           })
@@ -323,6 +325,102 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
 router.delete("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req: AuthedRequest, res) => {
   await prisma.product.update({ where: { id: req.params.id }, data: { isActive: false } });
   res.status(204).send();
+});
+
+const analyzeSchema = z.object({
+  imageUrls: z.array(z.string().min(1)).min(1).max(4),
+});
+
+// What the model gives back per photo set. Vehicle compatibility is
+// deliberately free-text + a confidence flag rather than a resolved
+// make/model/generation id -- a photo alone usually can't pin that down
+// precisely, so the frontend shows it as a hint next to the manual picker
+// instead of an auto-applied value like the other fields.
+const aiSuggestionSchema = z.object({
+  title: z.string(),
+  brand: z.string(),
+  category: z.string(),
+  shortDescription: z.string(),
+  vehicleCompatibilityGuess: z.string(),
+  vehicleConfidence: z.enum(["low", "medium", "high"]),
+});
+
+// Admin-only and not free (a few thousand tokens per call on Claude Haiku
+// 4.5 -- roughly half a cent), so it's opt-in per product rather than
+// running automatically on upload.
+router.post("/analyze-photos", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(503).json({ error: "AI photo analysis isn't configured yet (missing ANTHROPIC_API_KEY)." });
+  }
+
+  const parsed = analyzeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const [brands, categories] = await Promise.all([
+    prisma.brand.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+    prisma.category.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
+  ]);
+
+  const client = new Anthropic();
+
+  try {
+    const response = await client.messages.create({
+      model: "claude-haiku-4-5",
+      max_tokens: 1024,
+      system:
+        "You are helping a Kosovo auto-parts store catalog photos of exterior car parts (bumpers, lights, mirrors, glass, trim, body panels). " +
+        "Look at the photo(s) of a single part and suggest catalog fields. " +
+        "For brand, prefer one of the store's existing brand names if the part's brand is visibly identifiable (a logo, an OEM label); otherwise say \"Unknown\". " +
+        "For category, pick the closest match from the store's existing category names. " +
+        "For vehicleCompatibilityGuess, only guess a specific make/model/years if there's a real visual clue (a badge, a distinctive shape you recognize, visible OEM/part numbers) -- otherwise say \"Not enough visual information to determine compatibility.\" and set vehicleConfidence to \"low\". Never invent a specific vehicle with no supporting evidence.",
+      messages: [
+        {
+          role: "user",
+          content: [
+            ...parsed.data.imageUrls.map((url) => ({ type: "image" as const, source: { type: "url" as const, url } })),
+            {
+              type: "text" as const,
+              text:
+                `Existing brands: ${brands.map((b) => b.name).join(", ") || "(none yet)"}\n` +
+                `Existing categories: ${categories.map((c) => c.name).join(", ") || "(none yet)"}\n\n` +
+                "Suggest catalog fields for this part.",
+            },
+          ],
+        },
+      ],
+      output_config: {
+        format: {
+          type: "json_schema",
+          schema: {
+            type: "object",
+            properties: {
+              title: { type: "string" },
+              brand: { type: "string" },
+              category: { type: "string" },
+              shortDescription: { type: "string" },
+              vehicleCompatibilityGuess: { type: "string" },
+              vehicleConfidence: { type: "string", enum: ["low", "medium", "high"] },
+            },
+            required: ["title", "brand", "category", "shortDescription", "vehicleCompatibilityGuess", "vehicleConfidence"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+    if (!textBlock) {
+      return res.status(502).json({ error: "The AI didn't return a usable suggestion. Try again." });
+    }
+
+    const result = aiSuggestionSchema.safeParse(JSON.parse(textBlock.text));
+    if (!result.success) {
+      return res.status(502).json({ error: "The AI's response didn't match the expected format. Try again." });
+    }
+    res.json(result.data);
+  } catch (err: any) {
+    res.status(502).json({ error: err.message || "AI photo analysis failed." });
+  }
 });
 
 export default router;

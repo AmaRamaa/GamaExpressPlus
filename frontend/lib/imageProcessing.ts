@@ -48,6 +48,20 @@ async function stripBackground(file: File, onProgress?: ProcessImageOptions["onP
   });
 }
 
+// For stripping the background off a photo that's already uploaded (the
+// per-product "Remove background" button and the site-wide bulk tool both
+// start from a URL, not a fresh File from an <input>).
+export async function removeBackgroundFromUrl(
+  url: string,
+  onProgress?: ProcessImageOptions["onProgress"]
+): Promise<Blob> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Could not fetch the original photo");
+  const sourceBlob = await res.blob();
+  const file = new File([sourceBlob], "photo.jpg", { type: sourceBlob.type || "image/jpeg" });
+  return processImage(file, { removeBg: true, watermark: false, onProgress });
+}
+
 export async function processImage(file: File, options: ProcessImageOptions): Promise<Blob> {
   let working: Blob = file;
 

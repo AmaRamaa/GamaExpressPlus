@@ -213,6 +213,25 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
   res.json({ items, total, page: Number(page), limit: take, totalPages: Math.ceil(total / take) });
 });
 
+// Feeds the bulk background-removal tool: every active product's full image
+// set (not just the list thumbnail) in one call, so the tool can skip
+// already-processed photos (originalUrl set) and knows the complete image
+// array to resend on each PUT (product image updates are full-replace).
+router.get("/products/all-images", adminOnly, async (_req, res) => {
+  const products = await prisma.product.findMany({
+    where: { isActive: true },
+    select: {
+      id: true,
+      title: true,
+      images: {
+        orderBy: { sortOrder: "asc" },
+        select: { url: true, originalUrl: true, altText: true, sortOrder: true },
+      },
+    },
+  });
+  res.json(products);
+});
+
 router.get("/products/:id", adminOrStaffPin, async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { id: req.params.id },

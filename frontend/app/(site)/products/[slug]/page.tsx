@@ -3,14 +3,16 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus } from "lucide-react";
+import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus, Pencil, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { mapProduct } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/admin-store";
 import { PartCode, StockBadge } from "@/components/ui-bits";
 import ProductCard from "@/components/ProductCard";
 import ProductPrice from "@/components/ProductPrice";
 import ProductVisual from "@/components/ProductVisual";
+import { ProductForm, type ProductFormValues } from "@/components/admin/ProductForm";
 import type { Product } from "@/lib/types";
 
 const tabs = ["Overview", "Specifications", "Compatible vehicles"] as const;
@@ -28,7 +30,15 @@ export default function ProductDetailPage() {
   const [tab, setTab] = useState<(typeof tabs)[number]>("Overview");
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
-  useEffect(() => {
+  const adminToken = useAdminStore((s) => s.token);
+  const adminUser = useAdminStore((s) => s.user);
+  const isAdmin = adminUser?.role === "ADMIN" || adminUser?.role === "SUPER_ADMIN";
+  const [editOpen, setEditOpen] = useState(false);
+  const [editInitial, setEditInitial] = useState<Partial<ProductFormValues> | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  function load() {
     setProduct(null);
     setNotFound(false);
     setActiveImageIndex(0);
@@ -46,7 +56,64 @@ export default function ProductDetailPage() {
       .catch((e) => {
         if (e instanceof ApiError && e.status === 404) setNotFound(true);
       });
-  }, [slug]);
+  }
+
+  useEffect(load, [slug]);
+
+  // The admin ProductForm needs the raw admin-shaped product (all fields,
+  // real image/compatibility ids) -- the customer-facing `product` above is
+  // already adapted/simplified for the storefront, so this re-fetches from
+  // the admin endpoint rather than trying to reverse the adapter.
+  async function openEdit() {
+    if (!product) return;
+    setEditError("");
+    setEditLoading(true);
+    setEditOpen(true);
+    try {
+      const p = await api.get<any>(`/admin/products/${product.id}`, adminToken);
+      setEditInitial({
+        id: p.id,
+        sku: p.sku,
+        slug: p.slug,
+        title: p.title,
+        shortDescription: p.shortDescription || "",
+        description: p.description || "",
+        categoryId: p.categoryId,
+        brandId: p.brandId,
+        partNumber: p.partNumber,
+        manufacturerNumber: p.manufacturerNumber || "",
+        oemNumbers: (p.oemNumbers || []).join(", "),
+        priceEur: String(p.priceEur),
+        discountPriceEur: p.discountPriceEur != null ? String(p.discountPriceEur) : "",
+        stockQuantity: String(p.stockQuantity),
+        isFeatured: p.isFeatured,
+        isActive: p.isActive,
+        images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "", originalUrl: img.originalUrl || undefined })),
+        compatibility: (p.compatibility || []).map((c: any) => {
+          const gen = c.engine?.generation;
+          return {
+            engineId: c.engineId,
+            generationId: gen?.id ?? "",
+            label: `${gen?.model?.make?.name ?? ""} ${gen?.model?.name ?? ""} ${gen?.name ?? ""} (${gen?.yearFrom ?? "?"}–${gen?.yearTo ?? "present"})`.trim(),
+          };
+        }),
+      });
+    } catch (err) {
+      setEditError(err instanceof ApiError ? err.message : "Failed to load product for editing");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  function closeEdit() {
+    setEditOpen(false);
+    setEditInitial(null);
+  }
+
+  function handleEditSaved() {
+    closeEdit();
+    load();
+  }
 
   if (notFound) {
     return (
@@ -117,6 +184,7 @@ export default function ProductDetailPage() {
               images={product.imageUrls}
               activeIndex={activeImageIndex}
               onIndexChange={setActiveImageIndex}
+              magnify
             />
           </div>
           {product.imageUrls && product.imageUrls.length > 1 && (
@@ -140,9 +208,20 @@ export default function ProductDetailPage() {
 
         {/* Info */}
         <div>
-          <div className="mb-2 flex items-center justify-between">
+          <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold uppercase tracking-wide text-brand-red">{product.brand.name}</span>
-            <StockBadge status={product.stockStatus} />
+            <div className="flex items-center gap-2">
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={openEdit}
+                  className="flex items-center gap-1.5 rounded-lg border border-surface-border px-2.5 py-1 text-xs font-medium text-ink hover:bg-surface-muted"
+                >
+                  <Pencil size={13} /> Edit product
+                </button>
+              )}
+              <StockBadge status={product.stockStatus} />
+            </div>
           </div>
           <h1 className="mb-2 font-display text-3xl font-bold text-ink">{product.title}</h1>
 
@@ -257,6 +336,29 @@ export default function ProductDetailPage() {
           <h2 className="mb-5 font-display text-xl font-bold text-ink">Related products</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {related.map((p) => <ProductCard key={p.id} product={p} />)}
+          </div>
+        </div>
+      )}
+
+      {editOpen && (
+        <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-ink/60 p-4 py-8" onClick={closeEdit}>
+          <div
+            className="w-full max-w-3xl rounded-xl bg-slate-100 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-xl border-b border-slate-200 bg-white px-5 py-3.5">
+              <h2 className="font-display text-base font-bold text-ink">Edit product</h2>
+              <button type="button" onClick={closeEdit} aria-label="Close" className="rounded-lg p-1.5 text-ink-soft hover:bg-slate-100">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-5">
+              {editError && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-600">{editError}</p>}
+              {editLoading && <p className="text-sm text-ink-soft">Loading…</p>}
+              {!editLoading && editInitial && (
+                <ProductForm initial={editInitial} onSaved={handleEditSaved} onCancel={closeEdit} />
+              )}
+            </div>
           </div>
         </div>
       )}

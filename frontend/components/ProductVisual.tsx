@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type MouseEvent } from "react";
 import Image from "next/image";
-import { ZoomIn, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ZoomIn, X, ChevronLeft, ChevronRight, Search } from "lucide-react";
 
 interface VisualConfig {
   from: string;
@@ -27,6 +27,7 @@ export default function ProductVisual({
   images,
   activeIndex = 0,
   onIndexChange,
+  magnify = false,
 }: {
   categorySlug: string;
   imageUrl?: string;
@@ -39,11 +40,28 @@ export default function ProductVisual({
   images?: string[];
   activeIndex?: number;
   onIndexChange?: (index: number) => void;
+  // Hover-to-zoom lens (desktop/pointer devices only -- there's no useful
+  // "hover" on touch, where the full-screen lightbox is the way to inspect
+  // detail instead). Opt-in per usage so tiny card/cart thumbnails don't
+  // get a magnifier that makes no sense at that size.
+  magnify?: boolean;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const cfg = visuals[categorySlug] || fallback;
   const gradId = `grad-${categorySlug}-${variant}`;
   const gallery = images && images.length > 1 ? images : null;
+  const ZOOM = 2.5;
+  const LENS_RADIUS = 130;
+
+  function handleMouseMove(e: MouseEvent<HTMLDivElement>) {
+    if (!magnify || !containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    setLensPos({ x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) });
+  }
 
   function showRelative(delta: number) {
     if (!gallery || !onIndexChange) return;
@@ -65,8 +83,41 @@ export default function ProductVisual({
   if (imageUrl) {
     return (
       <>
-        <div className={`group/visual relative h-full w-full overflow-hidden ${fit === "contain" ? "bg-surface-muted" : ""} ${className}`}>
+        <div
+          ref={containerRef}
+          className={`group/visual relative h-full w-full overflow-hidden ${fit === "contain" ? "bg-surface-muted" : ""} ${className}`}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setLensPos(null)}
+        >
           <img src={imageUrl} alt="" className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`} />
+          {magnify && lensPos && (
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 hidden sm:block"
+              style={{
+                backgroundImage: `url(${imageUrl})`,
+                backgroundSize: `${ZOOM * 100}%`,
+                backgroundPosition: `${lensPos.x}% ${lensPos.y}%`,
+                backgroundRepeat: "no-repeat",
+                clipPath: `circle(${LENS_RADIUS}px at ${lensPos.x}% ${lensPos.y}%)`,
+              }}
+            >
+              <div
+                className="absolute rounded-full border-2 border-white shadow-lifted"
+                style={{
+                  width: LENS_RADIUS * 2,
+                  height: LENS_RADIUS * 2,
+                  left: `calc(${lensPos.x}% - ${LENS_RADIUS}px)`,
+                  top: `calc(${lensPos.y}% - ${LENS_RADIUS}px)`,
+                }}
+              />
+            </div>
+          )}
+          {magnify && !lensPos && (
+            <div className="pointer-events-none absolute bottom-2 left-2 hidden items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-ink-soft opacity-0 shadow-soft transition-opacity sm:flex sm:group-hover/visual:opacity-100">
+              <Search size={11} /> Hover to zoom
+            </div>
+          )}
           <button
             type="button"
             onClick={(e) => {

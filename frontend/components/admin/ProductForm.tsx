@@ -2,14 +2,15 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Upload, Loader2, X, RotateCcw, RotateCw, Download, Car, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Eraser, Undo2, Sparkles, Check } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 import VehicleAutocomplete, { type VehicleSearchEntry } from "@/components/VehicleAutocomplete";
+import { removeBackgroundFromUrl } from "@/lib/imageProcessing";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
-interface ImageRow { url: string; altText: string }
+interface ImageRow { url: string; altText: string; originalUrl?: string }
 interface CompatibilityRow { engineId: string; generationId: string; label: string }
 interface PendingUpload {
   id: string;
@@ -22,6 +23,14 @@ interface VehicleMake { id: string; name: string }
 interface VehicleModel { id: string; name: string }
 interface VehicleGeneration { id: string; name: string; yearFrom: number; yearTo: number | null }
 interface VehicleEngine { id: string; engineCode: string; displacementL: number; fuelType: string; horsePowerHp: number }
+interface AiSuggestion {
+  title: string;
+  brand: string;
+  category: string;
+  shortDescription: string;
+  vehicleCompatibilityGuess: string;
+  vehicleConfidence: "low" | "medium" | "high";
+}
 
 export interface ProductFormValues {
   id?: string;
@@ -38,7 +47,6 @@ export interface ProductFormValues {
   priceEur: string;
   discountPriceEur: string;
   stockQuantity: string;
-  lowStockThreshold: string;
   isFeatured: boolean;
   isActive: boolean;
   images: ImageRow[];
@@ -59,7 +67,6 @@ const EMPTY: ProductFormValues = {
   priceEur: "",
   discountPriceEur: "",
   stockQuantity: "0",
-  lowStockThreshold: "5",
   isFeatured: false,
   isActive: true,
   images: [],
@@ -70,7 +77,19 @@ const inputClass =
   "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand-red";
 const labelClass = "mb-1 block text-xs font-medium text-ink-soft";
 
-export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> }) {
+export function ProductForm({
+  initial,
+  onSaved,
+  onCancel,
+}: {
+  initial?: Partial<ProductFormValues>;
+  // Defaults to navigating to /admin/products, matching the dedicated
+  // create/edit admin pages. Pass these when embedding the form elsewhere
+  // (e.g. an inline-edit modal on the storefront) so it doesn't navigate
+  // the admin away from the page they were just looking at.
+  onSaved?: () => void;
+  onCancel?: () => void;
+}) {
   const router = useRouter();
   const token = useAdminStore((s) => s.token);
   const user = useAdminStore((s) => s.user);
@@ -84,6 +103,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
   const [uploadError, setUploadError] = useState("");
   const [rotatingUrl, setRotatingUrl] = useState<string | null>(null);
+  const [bgRemovingUrl, setBgRemovingUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pendingUploadsRef = useRef<PendingUpload[]>([]);
 
@@ -98,6 +118,10 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
   const isEdit = !!values.id;
   const isStaffFastEntry = user?.role === "STAFF_PIN" && !isEdit;
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+
+  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
 
   useEffect(() => {
     api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
@@ -245,6 +269,66 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     }
   }
 
+  // Non-destructive: the pre-removal photo is uploaded as-is to Storage and
+  // kept as originalUrl, never overwritten, so "Restore original" can always
+  // get back to exactly what was there before -- the AI pass can't
+  // permanently damage a photo.
+  async function removeBackgroundFromImage(index: number) {
+    const img = values.images[index];
+    if (!img || bgRemovingUrl) return;
+    setBgRemovingUrl(img.url);
+    setError("");
+    try {
+      const blob = await removeBackgroundFromUrl(img.url);
+      const formData = new FormData();
+      formData.append("file", new File([blob], "no-bg.jpg", { type: "image/jpeg" }));
+      const data = await api.upload<{ url: string }>("/uploads", formData, token);
+      setValues((v) => {
+        const next = [...v.images];
+        next[index] = { ...next[index], url: data.url, originalUrl: img.originalUrl || img.url };
+        return { ...v, images: next };
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not remove the background from this photo.");
+    } finally {
+      setBgRemovingUrl(null);
+    }
+  }
+
+  function restoreOriginalImage(index: number) {
+    setValues((v) => {
+      const next = [...v.images];
+      const original = next[index].originalUrl;
+      if (!original) return v;
+      next[index] = { ...next[index], url: original, originalUrl: undefined };
+      return { ...v, images: next };
+    });
+  }
+
+  async function analyzePhotos() {
+    const imageUrls = values.images.map((i) => i.url.trim()).filter(Boolean).slice(0, 4);
+    if (imageUrls.length === 0) return;
+    setAiLoading(true);
+    setAiError("");
+    setAiSuggestion(null);
+    try {
+      const suggestion = await api.post<AiSuggestion>("/products/analyze-photos", { imageUrls }, token);
+      setAiSuggestion(suggestion);
+    } catch (err) {
+      setAiError(err instanceof ApiError ? err.message : "AI analysis failed.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  function findBrandByName(name: string) {
+    return brands.find((b) => b.name.toLowerCase() === name.trim().toLowerCase());
+  }
+
+  function findCategoryByName(name: string) {
+    return categories.find((c) => c.name.toLowerCase() === name.trim().toLowerCase());
+  }
+
   async function downloadImage(url: string) {
     try {
       const res = await fetch(url);
@@ -329,7 +413,9 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
     setError("");
 
     const stockQuantity = Number(values.stockQuantity) || 0;
-    const stockStatus = stockQuantity === 0 ? "OUT_OF_STOCK" : stockQuantity <= Number(values.lowStockThreshold || 5) ? "LOW_STOCK" : "IN_STOCK";
+    // No more configurable low-stock buffer -- a product is either in stock
+    // or it isn't.
+    const stockStatus = stockQuantity === 0 ? "OUT_OF_STOCK" : "IN_STOCK";
 
     const payload = {
       sku: values.sku.trim() || undefined,
@@ -345,14 +431,13 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       priceEur: values.priceEur.trim() ? Number(values.priceEur) : undefined,
       discountPriceEur: values.discountPriceEur.trim() ? Number(values.discountPriceEur) : undefined,
       stockQuantity,
-      lowStockThreshold: Number(values.lowStockThreshold) || 5,
       stockStatus,
       isFeatured: values.isFeatured,
       isActive: values.isActive,
       images: {
         create: values.images
           .filter((img) => img.url.trim())
-          .map((img, i) => ({ url: img.url.trim(), altText: img.altText.trim() || undefined, sortOrder: i })),
+          .map((img, i) => ({ url: img.url.trim(), originalUrl: img.originalUrl, altText: img.altText.trim() || undefined, sortOrder: i })),
       },
       compatibility: {
         create: values.compatibility.map((c) => ({ engineId: c.engineId })),
@@ -367,7 +452,8 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
         await api.post("/products", { ...payload, ...(staffName ? { staffName } : {}) }, token);
       }
-      router.push("/admin/products");
+      if (onSaved) onSaved();
+      else router.push("/admin/products");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save product");
     } finally {
@@ -491,7 +577,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
         </div>
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => router.push("/admin/products")} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
+          <button type="button" onClick={() => (onCancel ? onCancel() : router.push("/admin/products"))} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
             Done for now
           </button>
           <button type="submit" disabled={saving} className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60">
@@ -577,7 +663,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <h2 className="mb-4 font-display text-sm font-semibold text-ink">Pricing & stock</h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div>
             <label className={labelClass}>Price (EUR)</label>
             <input type="number" step="0.01" min="0" className={inputClass} value={values.priceEur} onChange={(e) => set("priceEur", e.target.value)} />
@@ -589,10 +675,6 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
           <div>
             <label className={labelClass}>Stock quantity</label>
             <input type="number" min="0" className={inputClass} value={values.stockQuantity} onChange={(e) => set("stockQuantity", e.target.value)} />
-          </div>
-          <div>
-            <label className={labelClass}>Low stock threshold</label>
-            <input type="number" min="0" className={inputClass} value={values.lowStockThreshold} onChange={(e) => set("lowStockThreshold", e.target.value)} />
           </div>
         </div>
         <div className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
@@ -685,7 +767,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                       }}
                     />
                   )}
-                  {rotatingUrl === img.url && (
+                  {(rotatingUrl === img.url || bgRemovingUrl === img.url) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                       <Loader2 size={14} className="animate-spin text-white" />
                     </div>
@@ -746,6 +828,28 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
                     >
                       <Download size={15} />
                     </button>
+                    {img.originalUrl ? (
+                      <button
+                        type="button"
+                        onClick={() => restoreOriginalImage(i)}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink"
+                        aria-label="Restore original photo"
+                        title="Restore original"
+                      >
+                        <Undo2 size={15} />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => removeBackgroundFromImage(i)}
+                        disabled={!!bgRemovingUrl}
+                        className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-ink disabled:opacity-40"
+                        aria-label="Remove background"
+                        title="Remove background"
+                      >
+                        <Eraser size={15} />
+                      </button>
+                    )}
                   </div>
                 )}
                 <input
@@ -780,6 +884,93 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
             ))}
             {values.images.length === 0 && <p className="text-sm text-ink-soft">No images added yet.</p>}
           </div>
+        </div>
+      )}
+
+      {isAdmin && values.images.length > 0 && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <h2 className="flex items-center gap-2 font-display text-sm font-semibold text-ink">
+              <Sparkles size={16} className="text-brand-red" /> AI suggestions
+            </h2>
+            <button
+              type="button"
+              onClick={analyzePhotos}
+              disabled={aiLoading}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-ink hover:bg-slate-50 disabled:opacity-60"
+            >
+              {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+              {aiLoading ? "Analyzing…" : aiSuggestion ? "Re-analyze photos" : "Analyze photos with AI"}
+            </button>
+          </div>
+          <p className="mb-3 text-xs text-ink-soft">
+            Looks at the photos and suggests Title, Brand, Category, and a short description -- compare against
+            what's entered and apply whichever you want, field by field.
+          </p>
+
+          {aiError && <p className="mb-3 rounded-lg bg-red-50 p-2.5 text-xs text-red-600">{aiError}</p>}
+
+          {aiSuggestion && (
+            <div className="space-y-2.5">
+              {([
+                { key: "title", label: "Title", aiValue: aiSuggestion.title, apply: () => set("title", aiSuggestion.title) },
+                {
+                  key: "brand",
+                  label: "Brand",
+                  aiValue: aiSuggestion.brand,
+                  apply: () => {
+                    const match = findBrandByName(aiSuggestion.brand);
+                    if (match) set("brandId", match.id);
+                  },
+                  disabled: !findBrandByName(aiSuggestion.brand),
+                  note: !findBrandByName(aiSuggestion.brand) ? "Not in your Brands list yet" : undefined,
+                },
+                {
+                  key: "category",
+                  label: "Category",
+                  aiValue: aiSuggestion.category,
+                  apply: () => {
+                    const match = findCategoryByName(aiSuggestion.category);
+                    if (match) set("categoryId", match.id);
+                  },
+                  disabled: !findCategoryByName(aiSuggestion.category),
+                  note: !findCategoryByName(aiSuggestion.category) ? "Not in your Categories list yet" : undefined,
+                },
+                {
+                  key: "shortDescription",
+                  label: "Short description",
+                  aiValue: aiSuggestion.shortDescription,
+                  apply: () => set("shortDescription", aiSuggestion.shortDescription),
+                },
+              ] as const).map((field) => (
+                <div key={field.key} className="flex items-start justify-between gap-3 rounded-lg bg-slate-50 p-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">{field.label}</p>
+                    <p className="truncate text-sm text-ink">{field.aiValue || "—"}</p>
+                    {"note" in field && field.note && <p className="text-[11px] text-amber-600">{field.note}</p>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={field.apply}
+                    disabled={"disabled" in field && field.disabled}
+                    className="flex shrink-0 items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-ink hover:bg-slate-100 disabled:opacity-40"
+                  >
+                    <Check size={12} /> Use this
+                  </button>
+                </div>
+              ))}
+
+              <div className="rounded-lg bg-amber-50 p-2.5">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-amber-700">
+                  Vehicle compatibility guess ({aiSuggestion.vehicleConfidence} confidence)
+                </p>
+                <p className="text-sm text-amber-900">{aiSuggestion.vehicleCompatibilityGuess}</p>
+                <p className="mt-1 text-[11px] text-amber-700">
+                  A photo alone usually can't confirm exact fitment -- verify and add the real vehicle below.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -839,7 +1030,7 @@ export function ProductForm({ initial }: { initial?: Partial<ProductFormValues> 
       )}
 
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={() => router.push("/admin/products")} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
+        <button type="button" onClick={() => (onCancel ? onCancel() : router.push("/admin/products"))} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-ink-soft hover:bg-slate-50">
           Cancel
         </button>
         <button type="submit" disabled={saving} className="rounded-lg bg-brand-red px-4 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60">

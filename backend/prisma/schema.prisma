@@ -300,7 +300,7 @@ model Product {
 
   stockStatus   StockStatus @default(IN_STOCK)
   stockQuantity Int      @default(0)
-  lowStockThreshold Int  @default(5)
+  lowStockThreshold Int  @default(0)
   warehouseStock WarehouseStock[]
 
   isFeatured    Boolean  @default(false)
@@ -332,12 +332,16 @@ model Product {
 }
 
 model ProductImage {
-  id        String  @id @default(cuid())
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  productId String
-  url       String
-  altText   String?
-  sortOrder Int     @default(0)
+  id          String  @id @default(cuid())
+  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   String
+  url         String
+  // Set only once a background-removal pass has replaced `url` with a
+  // processed version -- lets the original be restored non-destructively
+  // and lets the bulk tool skip images it's already processed.
+  originalUrl String?
+  altText     String?
+  sortOrder   Int     @default(0)
 }
 
 // Many-to-many: product <-> vehicle engine fitment

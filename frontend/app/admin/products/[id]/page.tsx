@@ -32,10 +32,9 @@ export default function EditProductPage() {
           priceEur: String(p.priceEur),
           discountPriceEur: p.discountPriceEur != null ? String(p.discountPriceEur) : "",
           stockQuantity: String(p.stockQuantity),
-          lowStockThreshold: String(p.lowStockThreshold),
           isFeatured: p.isFeatured,
           isActive: p.isActive,
-          images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "" })),
+          images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "", originalUrl: img.originalUrl || undefined })),
           compatibility: (p.compatibility || []).map((c: any) => {
             const gen = c.engine?.generation;
             return {
