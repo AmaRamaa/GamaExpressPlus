@@ -57,8 +57,44 @@ export default function ProductDetailPage() {
     );
   }
 
+  // A layout-matching skeleton instead of a bare "Loading…" line -- swapping
+  // a tiny centered message for this whole two-column page was the single
+  // biggest source of layout shift on this route (Poor CLS in Speed
+  // Insights, worse on mobile where the fetch takes longer to resolve).
   if (!product) {
-    return <div className="container-page py-16 text-center text-ink-soft">Loading…</div>;
+    return (
+      <div className="container-page animate-pulse py-8">
+        <div className="mb-6 h-4 w-48 rounded bg-surface-muted" />
+        <div className="grid gap-10 lg:grid-cols-2">
+          <div>
+            <div className="mb-3 aspect-square rounded-xl bg-surface-muted" />
+            <div className="flex gap-2">
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="h-16 w-16 shrink-0 rounded-lg bg-surface-muted" />
+              ))}
+            </div>
+          </div>
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <div className="h-4 w-24 rounded bg-surface-muted" />
+              <div className="h-5 w-20 rounded-full bg-surface-muted" />
+            </div>
+            <div className="mb-2 h-8 w-3/4 rounded bg-surface-muted" />
+            <div className="my-4 flex gap-4">
+              <div className="h-4 w-24 rounded bg-surface-muted" />
+              <div className="h-4 w-24 rounded bg-surface-muted" />
+            </div>
+            <div className="mb-5 h-4 w-full rounded bg-surface-muted" />
+            <div className="mb-5 h-40 rounded-xl bg-surface-muted" />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="h-12 rounded-lg bg-surface-muted" />
+              <div className="h-12 rounded-lg bg-surface-muted" />
+            </div>
+          </div>
+        </div>
+        <div className="mt-12 h-11 border-b border-surface-border" />
+      </div>
+    );
   }
 
   return (

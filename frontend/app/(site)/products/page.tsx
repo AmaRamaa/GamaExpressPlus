@@ -28,12 +28,17 @@ function ProductsPageContent() {
   const [sort, setSort] = useState(searchParams.get("sort") || "relevance");
   const [maxPrice, setMaxPrice] = useState(200);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<any[]>("/catalog/categories").then((raw) => setCategories(raw.map(mapCategory))).catch(() => {});
+    api
+      .get<any[]>("/catalog/categories")
+      .then((raw) => setCategories(raw.map(mapCategory)))
+      .catch(() => {})
+      .finally(() => setCategoriesLoading(false));
   }, []);
 
   useEffect(() => {
@@ -79,23 +84,34 @@ function ProductsPageContent() {
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
               <SlidersHorizontal size={14} /> Category
             </p>
-            <ul className="space-y-1.5 text-sm">
-              <li>
-                <button onClick={() => setSelectedCategory("")} className={`text-left ${!selectedCategory ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}>
-                  All categories
-                </button>
-              </li>
-              {categories.map((c) => (
-                <li key={c.id}>
-                  <button
-                    onClick={() => setSelectedCategory(c.slug)}
-                    className={`text-left ${selectedCategory === c.slug ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}
-                  >
-                    {c.name}
+            {categoriesLoading ? (
+              // Reserves roughly the space the real category list will
+              // take, so it doesn't pop in and push the vehicle finder /
+              // price slider / results grid down once it loads.
+              <div className="animate-pulse space-y-2.5">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="h-3.5 rounded bg-surface-muted" style={{ width: `${60 + (i % 3) * 15}%` }} />
+                ))}
+              </div>
+            ) : (
+              <ul className="space-y-1.5 text-sm">
+                <li>
+                  <button onClick={() => setSelectedCategory("")} className={`text-left ${!selectedCategory ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}>
+                    All categories
                   </button>
                 </li>
-              ))}
-            </ul>
+                {categories.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => setSelectedCategory(c.slug)}
+                      className={`text-left ${selectedCategory === c.slug ? "font-semibold text-brand-red" : "text-ink-soft hover:text-ink"}`}
+                    >
+                      {c.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
@@ -132,7 +148,21 @@ function ProductsPageContent() {
             </select>
           </div>
 
-          {!loading && products.length === 0 ? (
+          {loading && products.length === 0 ? (
+            // Same grid shape as the real results -- reserves the height
+            // up front instead of popping a full grid into empty space
+            // once the fetch resolves (was a big source of layout shift).
+            <div className="grid animate-pulse grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="rounded-xl border border-surface-border bg-surface p-3">
+                  <div className="mb-3 aspect-square rounded-lg bg-surface-muted" />
+                  <div className="mb-2 h-3 w-1/3 rounded bg-surface-muted" />
+                  <div className="mb-3 h-4 w-full rounded bg-surface-muted" />
+                  <div className="h-5 w-1/2 rounded bg-surface-muted" />
+                </div>
+              ))}
+            </div>
+          ) : products.length === 0 ? (
             <div className="rounded-xl border border-dashed border-surface-border bg-surface p-12 text-center">
               <p className="font-display text-lg font-semibold text-ink">No parts match those filters</p>
               <p className="mt-1 text-sm text-ink-soft">Try widening your price range or clearing a filter.</p>
