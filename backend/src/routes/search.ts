@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma";
+import { buildProductSearchAnd } from "../lib/search";
 import { optionalAuth, AuthedRequest } from "../middleware/auth";
 
 const router = Router();
@@ -9,22 +10,16 @@ router.get("/suggest", async (req, res) => {
   const q = String(req.query.q || "").trim();
   if (q.length < 2) return res.json({ products: [], categories: [], brands: [] });
 
+  const and = await buildProductSearchAnd(q);
+
   const [products, categories, brands] = await Promise.all([
     prisma.product.findMany({
-      where: {
-        isActive: true,
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { partNumber: { contains: q, mode: "insensitive" } },
-          { oemNumbers: { has: q } },
-          { sku: { contains: q, mode: "insensitive" } },
-        ],
-      },
+      where: { isActive: true, ...(and ? { AND: and } : {}) },
       take: 6,
       select: { id: true, title: true, slug: true, priceEur: true, discountPriceEur: true, partNumber: true, images: { take: 1 } },
     }),
-    prisma.category.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4 }),
-    prisma.brand.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4 }),
+    prisma.category.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4, select: { id: true, name: true, slug: true } }),
+    prisma.brand.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4, select: { id: true, name: true, slug: true } }),
   ]);
 
   res.json({ products, categories, brands });

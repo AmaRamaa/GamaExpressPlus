@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
+import { buildProductSearchAnd } from "../lib/search";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware/auth";
 
 const router = Router();
@@ -161,13 +162,8 @@ router.get("/", async (req, res) => {
     if (maxPrice) where.priceEur.lte = Number(maxPrice);
   }
   if (q) {
-    where.OR = [
-      { title: { contains: q, mode: "insensitive" } },
-      { partNumber: { contains: q, mode: "insensitive" } },
-      { manufacturerNumber: { contains: q, mode: "insensitive" } },
-      { sku: { contains: q, mode: "insensitive" } },
-      { oemNumbers: { has: q } },
-    ];
+    const and = await buildProductSearchAnd(q);
+    if (and) where.AND = and;
   }
 
   const orderBy: any =
