@@ -4,32 +4,26 @@ import { useState } from "react";
 import { Mail, Phone, Clock, MapPin } from "lucide-react";
 import { SITE_PHONE_PRIMARY, SITE_PHONE_SECONDARY, SITE_EMAIL, SITE_LOCATIONS } from "@/lib/constants";
 import { useT } from "@/lib/i18n";
-import { api } from "@/lib/api";
+import { buildMailtoUrl } from "@/lib/mailto";
 
 export default function ContactPage() {
   const { t } = useT();
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setSubmitting(true);
     const form = new FormData(e.currentTarget);
-    try {
-      await api.post("/contact", {
-        fullName: form.get("fullName"),
-        email: form.get("email"),
-        subject: form.get("subject"),
-        message: form.get("message"),
-      });
-      setSubmitted(true);
-    } catch {
-      setError(t.common.formErrorGeneric);
-    } finally {
-      setSubmitting(false);
-    }
+    const fullName = form.get("fullName") as string;
+    const email = form.get("email") as string;
+    const subject = form.get("subject") as string;
+    const message = form.get("message") as string;
+
+    window.location.href = buildMailtoUrl(SITE_EMAIL, `[Contact] ${subject}`, [
+      ["Name", fullName],
+      ["Email", email],
+      ["Message", message],
+    ]);
+    setSubmitted(true);
   }
 
   const info = [
@@ -97,13 +91,11 @@ export default function ContactPage() {
               <label className="mb-1 block text-xs font-medium text-ink-soft">{t.contact.messageLabel}</label>
               <textarea name="message" required rows={5} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
             </div>
-            {error && <p className="text-sm text-brand-red">{error}</p>}
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60"
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark"
             >
-              {submitting ? t.common.formSending : t.contact.sendButton}
+              {t.contact.sendButton}
             </button>
           </form>
         )}

@@ -3,34 +3,32 @@
 import { useState } from "react";
 import { PackageSearch } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { api } from "@/lib/api";
+import { SITE_EMAIL } from "@/lib/constants";
+import { buildMailtoUrl } from "@/lib/mailto";
 
 export default function RequestPartPage() {
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const { t } = useT();
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError(null);
-    setSubmitting(true);
     const form = new FormData(e.currentTarget);
-    try {
-      await api.post("/contact/request-part", {
-        fullName: form.get("fullName"),
-        email: form.get("email"),
-        phone: form.get("phone"),
-        vehicle: form.get("vehicle"),
-        oem: form.get("oem"),
-        partDesc: form.get("partDesc"),
-      });
-      setSubmitted(true);
-    } catch {
-      setError(t.common.formErrorGeneric);
-    } finally {
-      setSubmitting(false);
-    }
+    const fullName = form.get("fullName") as string;
+    const email = form.get("email") as string;
+    const phone = form.get("phone") as string;
+    const vehicle = form.get("vehicle") as string;
+    const oem = form.get("oem") as string;
+    const partDesc = form.get("partDesc") as string;
+
+    window.location.href = buildMailtoUrl(SITE_EMAIL, `[Part Request] ${fullName}`, [
+      ["Name", fullName],
+      ["Email", email],
+      ["Phone", phone],
+      ["Vehicle", vehicle],
+      ["OEM number", oem],
+      ["Part description", partDesc],
+    ]);
+    setSubmitted(true);
   }
 
   return (
@@ -80,13 +78,11 @@ export default function RequestPartPage() {
               <label className="mb-1 block text-xs font-medium text-ink-soft">{t.requestPart.partDescLabel}</label>
               <textarea name="partDesc" required rows={4} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
             </div>
-            {error && <p className="text-sm text-brand-red">{error}</p>}
             <button
               type="submit"
-              disabled={submitting}
-              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60"
+              className="w-full rounded-lg bg-brand-red py-3 text-sm font-semibold text-white hover:bg-brand-red-dark"
             >
-              {submitting ? t.common.formSending : t.requestPart.submitButton}
+              {t.requestPart.submitButton}
             </button>
           </form>
         )}

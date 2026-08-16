@@ -19,7 +19,6 @@ import quoteRoutes from "./routes/quotes";
 import contentRoutes from "./routes/content";
 import adminRoutes from "./routes/admin";
 import uploadRoutes from "./routes/uploads";
-import contactRoutes from "./routes/contact";
 import { prisma } from "./lib/prisma";
 
 const app = express();
@@ -70,15 +69,6 @@ const authLimiter = rateLimit({
   message: { error: "Too many attempts. Please try again later." },
 });
 
-// Keeps the contact/quote/request-part forms from being used as a spam relay.
-const contactLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000,
-  max: 10,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: "Too many requests. Please call or WhatsApp us instead." },
-});
-
 app.get("/api/health", (_req, res) => res.json({ status: "ok", timestamp: new Date().toISOString() }));
 
 app.use("/api/auth/login", authLimiter);
@@ -100,7 +90,6 @@ app.use("/api/quotes", quoteRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/uploads", uploadRoutes);
-app.use("/api/contact", contactLimiter, contactRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
 
