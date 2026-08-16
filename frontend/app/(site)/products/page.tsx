@@ -42,6 +42,20 @@ function ProductsPageContent() {
       .finally(() => setCategoriesLoading(false));
   }, []);
 
+  // selectedCategory/sort are local state (so the sidebar/sort-select can
+  // update them without a URL round-trip), but that means they only pick up
+  // their initial value from the URL once on mount -- clicking a category
+  // link elsewhere (e.g. the header mega menu) while already on this page
+  // changes the URL but not these, so the results never actually change.
+  // Re-sync them whenever the URL's own params change.
+  useEffect(() => {
+    setSelectedCategory(categorySlug);
+  }, [categorySlug]);
+
+  useEffect(() => {
+    setSort(searchParams.get("sort") || "relevance");
+  }, [searchParams]);
+
   useEffect(() => {
     const saved = localStorage.getItem("gama-express-products-view");
     if (saved === "grid" || saved === "list") setView(saved);
