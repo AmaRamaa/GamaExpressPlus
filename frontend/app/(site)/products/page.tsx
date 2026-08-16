@@ -9,9 +9,12 @@ import { api } from "@/lib/api";
 import { mapProduct, mapCategory } from "@/lib/adapters";
 import type { Product, Category } from "@/lib/types";
 
+const PAGE_SIZE = 16;
+
 interface ProductListResponse {
   items: any[];
   total: number;
+  totalPages: number;
 }
 
 function ProductsPageContent() {
@@ -32,6 +35,8 @@ function ProductsPageContent() {
   const [categoriesLoading, setCategoriesLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -66,8 +71,16 @@ function ProductsPageContent() {
     localStorage.setItem("gama-express-products-view", next);
   }
 
+  // A filter/search/sort change invalidates whatever page you were on (it
+  // might not even exist in the new result set), so jump back to page 1
+  // whenever any of them change. Kept separate from the fetch effect below
+  // so that effect can react to `page` changes on their own.
   useEffect(() => {
-    const params = new URLSearchParams({ limit: "48" });
+    setPage(1);
+  }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice]);
+
+  useEffect(() => {
+    const params = new URLSearchParams({ limit: String(PAGE_SIZE), page: String(page) });
     if (q) params.set("q", q);
     // Only the most specific vehicle filter present is sent -- generation is
     // exact, model/make are progressively broader fallbacks (see VehicleFinder).
@@ -88,10 +101,16 @@ function ProductsPageContent() {
         if (sort === "rating") items = [...items].sort((a, b) => b.rating - a.rating);
         setProducts(items);
         setTotal(res.total);
+        setTotalPages(res.totalPages);
       })
       .catch(() => setProducts([]))
       .finally(() => setLoading(false));
-  }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice]);
+  }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice, page]);
+
+  function goToPage(next: number) {
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   return (
     <div className="container-page py-8">
@@ -199,7 +218,7 @@ function ProductsPageContent() {
             // once the fetch resolves (was a big source of layout shift).
             view === "list" ? (
               <div className="flex animate-pulse flex-col gap-2">
-                {Array.from({ length: 10 }).map((_, i) => (
+                {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <div key={i} className="flex items-center gap-3 rounded-lg border border-surface-border bg-surface px-3 py-2">
                     <div className="h-5 w-16 rounded-full bg-surface-muted" />
                     <div className="h-3.5 flex-1 rounded bg-surface-muted" />
@@ -210,7 +229,7 @@ function ProductsPageContent() {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
-                {Array.from({ length: 8 }).map((_, i) => (
+                {Array.from({ length: PAGE_SIZE }).map((_, i) => (
                   <div key={i} className="rounded-xl border border-surface-border bg-surface p-3">
                     <div className="mb-3 aspect-square rounded-lg bg-surface-muted" />
                     <div className="mb-2 h-3 w-1/3 rounded bg-surface-muted" />
@@ -232,6 +251,26 @@ function ProductsPageContent() {
           ) : (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-4">
               {products.map((p) => <ProductCard key={p.id} product={p} />)}
+            </div>
+          )}
+
+          {!loading && totalPages > 1 && (
+            <div className="mt-8 flex items-center justify-center gap-2">
+              <button
+                disabled={page <= 1}
+                onClick={() => goToPage(page - 1)}
+                className="rounded-lg border border-surface-border px-3 py-1.5 text-sm text-ink disabled:opacity-40"
+              >
+                Prev
+              </button>
+              <span className="text-sm text-ink-soft">Page {page} of {totalPages}</span>
+              <button
+                disabled={page >= totalPages}
+                onClick={() => goToPage(page + 1)}
+                className="rounded-lg border border-surface-border px-3 py-1.5 text-sm text-ink disabled:opacity-40"
+              >
+                Next
+              </button>
             </div>
           )}
         </div>
