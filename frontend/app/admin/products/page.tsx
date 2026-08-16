@@ -14,6 +14,8 @@ interface ProductRow {
   stockQuantity: number;
   stockStatus: string;
   isActive: boolean;
+  brandId: string;
+  categoryId: string;
   brand: { name: string };
   category: { name: string };
 }
@@ -23,6 +25,11 @@ interface ListResponse {
   total: number;
   page: number;
   totalPages: number;
+}
+
+interface FilterOption {
+  id: string;
+  name: string;
 }
 
 export default function AdminProductsPage() {
@@ -36,6 +43,80 @@ export default function AdminProductsPage() {
   const [lastViewedId, setLastViewedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [brandOptions, setBrandOptions] = useState<FilterOption[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>([]);
+  const [filterBrandId, setFilterBrandId] = useState("");
+  const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterActive, setFilterActive] = useState<"" | "true" | "false">("");
+  const [editingCell, setEditingCell] = useState<{ id: string; field: "price" | "stock" } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [savingId, setSavingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get<FilterOption[]>("/catalog/brands").then(setBrandOptions).catch(() => {});
+    api.get<FilterOption[]>("/catalog/categories").then(setCategoryOptions).catch(() => {});
+  }, []);
+
+  function startEdit(row: ProductRow, field: "price" | "stock") {
+    setEditingCell({ id: row.id, field });
+    setEditValue(field === "price" ? String(row.priceEur) : String(row.stockQuantity));
+  }
+
+  function cancelEdit() {
+    setEditingCell(null);
+    setEditValue("");
+  }
+
+  // Auto-saves on blur/Enter -- no separate "Save" step, so the change is
+  // already persisted by the time you click away or navigate elsewhere,
+  // the same way a spreadsheet commits a cell on losing focus.
+  async function commitEdit() {
+    if (!editingCell || !data) return;
+    const row = data.items.find((p) => p.id === editingCell.id);
+    if (!row) return cancelEdit();
+
+    const field = editingCell.field;
+    const num = Number(editValue);
+    if (editValue.trim() === "" || Number.isNaN(num) || num < 0) return cancelEdit();
+
+    const unchanged = field === "price" ? num === row.priceEur : num === row.stockQuantity;
+    if (unchanged) return cancelEdit();
+
+    const payload =
+      field === "price"
+        ? { priceEur: num }
+        : { stockQuantity: num, stockStatus: num === 0 ? "OUT_OF_STOCK" : "IN_STOCK" };
+
+    setSavingId(row.id);
+    setEditingCell(null);
+    try {
+      await api.put(`/products/${row.id}`, payload, token);
+      setData((d) =>
+        d ? { ...d, items: d.items.map((p) => (p.id === row.id ? { ...p, ...payload } : p)) } : d
+      );
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Failed to save");
+    } finally {
+      setSavingId(null);
+    }
+  }
+
+  async function toggleRowActive(row: ProductRow) {
+    if (savingId) return;
+    const nextActive = !row.isActive;
+    if (!nextActive && !confirm(`Deactivate "${row.title}"? It will be hidden from the storefront.`)) return;
+    setSavingId(row.id);
+    try {
+      await api.put(`/products/${row.id}`, { isActive: nextActive }, token);
+      setData((d) =>
+        d ? { ...d, items: d.items.map((p) => (p.id === row.id ? { ...p, isActive: nextActive } : p)) } : d
+      );
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Failed to save");
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   function toggleSelected(id: string) {
     setSelected((prev) => {
@@ -91,6 +172,9 @@ export default function AdminProductsPage() {
   function load() {
     const params = new URLSearchParams({ page: String(page), limit: "20" });
     if (q) params.set("q", q);
+    if (filterBrandId) params.set("brandId", filterBrandId);
+    if (filterCategoryId) params.set("categoryId", filterCategoryId);
+    if (filterActive) params.set("isActive", filterActive);
     api
       .get<ListResponse>(`/admin/products?${params.toString()}`, token)
       .then(setData)
@@ -101,7 +185,7 @@ export default function AdminProductsPage() {
     load();
     setSelected(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page]);
+  }, [token, page, filterBrandId, filterCategoryId, filterActive]);
 
   async function handleDelete(id: string, title: string) {
     if (!confirm(`Deactivate "${title}"? It will be hidden from the storefront.`)) return;
@@ -141,6 +225,42 @@ export default function AdminProductsPage() {
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && (setPage(1), setSelected(new Set()), load())}
         />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <select
+          value={filterBrandId}
+          onChange={(e) => { setFilterBrandId(e.target.value); setPage(1); }}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
+        >
+          <option value="">All brands</option>
+          {brandOptions.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+        </select>
+        <select
+          value={filterCategoryId}
+          onChange={(e) => { setFilterCategoryId(e.target.value); setPage(1); }}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
+        >
+          <option value="">All categories</option>
+          {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select
+          value={filterActive}
+          onChange={(e) => { setFilterActive(e.target.value as "" | "true" | "false"); setPage(1); }}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
+        >
+          <option value="">All statuses</option>
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+        {(filterBrandId || filterCategoryId || filterActive) && (
+          <button
+            onClick={() => { setFilterBrandId(""); setFilterCategoryId(""); setFilterActive(""); setPage(1); }}
+            className="text-xs font-medium text-ink-soft hover:text-ink"
+          >
+            Clear filters
+          </button>
+        )}
       </div>
 
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
@@ -200,12 +320,70 @@ export default function AdminProductsPage() {
                 <td className="part-code px-3 py-1.5 text-ink-soft">{p.sku}</td>
                 <td className="px-3 py-1.5 text-ink-soft">{p.brand?.name}</td>
                 <td className="px-3 py-1.5 text-ink-soft">{p.category?.name}</td>
-                <td className="px-3 py-1.5 text-right font-medium text-ink">€{p.priceEur.toFixed(2)}</td>
-                <td className="px-3 py-1.5 text-right text-ink-soft">{p.stockQuantity}</td>
+                <td className="px-3 py-1.5 text-right font-medium text-ink">
+                  {editingCell?.id === p.id && editingCell.field === "price" ? (
+                    <div className="flex items-center justify-end gap-1">
+                      <input
+                        autoFocus
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onBlur={commitEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") commitEdit();
+                          else if (e.key === "Escape") cancelEdit();
+                        }}
+                        className="w-20 rounded border border-brand-red px-1.5 py-0.5 text-right text-sm outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => startEdit(p, "price")}
+                      disabled={savingId === p.id}
+                      className="rounded px-1.5 py-0.5 hover:bg-slate-100 disabled:opacity-50"
+                      title="Click to edit"
+                    >
+                      €{p.priceEur.toFixed(2)}
+                    </button>
+                  )}
+                </td>
+                <td className="px-3 py-1.5 text-right text-ink-soft">
+                  {editingCell?.id === p.id && editingCell.field === "stock" ? (
+                    <input
+                      autoFocus
+                      type="number"
+                      min="0"
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={commitEdit}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit();
+                        else if (e.key === "Escape") cancelEdit();
+                      }}
+                      className="w-16 rounded border border-brand-red px-1.5 py-0.5 text-right text-sm outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => startEdit(p, "stock")}
+                      disabled={savingId === p.id}
+                      className="rounded px-1.5 py-0.5 hover:bg-slate-100 disabled:opacity-50"
+                      title="Click to edit"
+                    >
+                      {p.stockQuantity}
+                    </button>
+                  )}
+                </td>
                 <td className="px-3 py-1.5">
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${p.isActive ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-500"}`}>
+                  <button
+                    onClick={() => toggleRowActive(p)}
+                    disabled={savingId === p.id}
+                    title="Click to toggle"
+                    className={`rounded-full px-2 py-0.5 text-xs font-medium disabled:opacity-50 ${p.isActive ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}
+                  >
                     {p.isActive ? "Active" : "Inactive"}
-                  </span>
+                  </button>
                 </td>
                 <td className="px-3 py-1.5">
                   <div className="flex justify-end gap-1">

@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "../lib/prisma";
+import { buildProductSearchAnd } from "../lib/search";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth";
 
 const router = Router();
@@ -183,18 +184,18 @@ router.patch("/inventory/:productId/stock", adminOnly, async (req, res) => {
   res.json(stock);
 });
 
-// Products — admin listing includes inactive items and supports search
+// Products — admin listing includes inactive items and supports search plus
+// Excel-style column filters (brand/category/status) for the admin table.
 router.get("/products", adminOrStaffPin, async (req, res) => {
-  const { q, page = "1", limit = "24" } = req.query as Record<string, string>;
-  const where: any = q
-    ? {
-        OR: [
-          { title: { contains: q, mode: "insensitive" } },
-          { sku: { contains: q, mode: "insensitive" } },
-          { partNumber: { contains: q, mode: "insensitive" } },
-        ],
-      }
-    : {};
+  const { q, brandId, categoryId, isActive, page = "1", limit = "24" } = req.query as Record<string, string>;
+  const where: any = {};
+  if (q) {
+    const and = await buildProductSearchAnd(q);
+    if (and) where.AND = and;
+  }
+  if (brandId) where.brandId = brandId;
+  if (categoryId) where.categoryId = categoryId;
+  if (isActive === "true" || isActive === "false") where.isActive = isActive === "true";
 
   const take = Math.min(Number(limit) || 24, 100);
   const skip = (Math.max(Number(page) || 1, 1) - 1) * take;
