@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
@@ -34,13 +35,36 @@ interface FilterOption {
   name: string;
 }
 
-export default function AdminProductsPage() {
+function AdminProductsPageContent() {
   const token = useAdminStore((s) => s.token);
   const user = useAdminStore((s) => s.user);
   const isAdmin = user?.role === "ADMIN" || user?.role === "SUPER_ADMIN";
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Search/pagination/filters live in the URL (not local state) so they
+  // survive navigating away and back -- e.g. clicking into a product to edit
+  // it and then hitting Back used to always dump you on page 1 with filters
+  // cleared, since a fresh mount reset every one of these to its default.
+  const q = searchParams.get("q") || "";
+  const page = Number(searchParams.get("page")) || 1;
+  const filterBrandId = searchParams.get("brandId") || "";
+  const filterCategoryId = searchParams.get("categoryId") || "";
+  const filterManufacturerId = searchParams.get("manufacturerId") || "";
+  const filterActive = (searchParams.get("isActive") || "") as "" | "true" | "false";
+
+  function updateParams(next: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
+
+  const [qInput, setQInput] = useState(q);
   const [data, setData] = useState<ListResponse | null>(null);
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(1);
   const [error, setError] = useState("");
   const [lastViewedId, setLastViewedId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -48,13 +72,12 @@ export default function AdminProductsPage() {
   const [brandOptions, setBrandOptions] = useState<FilterOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>([]);
   const [manufacturerOptions, setManufacturerOptions] = useState<FilterOption[]>([]);
-  const [filterBrandId, setFilterBrandId] = useState("");
-  const [filterCategoryId, setFilterCategoryId] = useState("");
-  const [filterManufacturerId, setFilterManufacturerId] = useState("");
-  const [filterActive, setFilterActive] = useState<"" | "true" | "false">("");
   const [editingCell, setEditingCell] = useState<{ id: string; field: "price" | "stock" } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+
+  // Keep the search box in sync when the URL changes from elsewhere (e.g. browser back/forward).
+  useEffect(() => setQInput(q), [q]);
 
   useEffect(() => {
     api.get<FilterOption[]>("/catalog/brands").then(setBrandOptions).catch(() => {});
@@ -191,7 +214,7 @@ export default function AdminProductsPage() {
     load();
     setSelected(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, filterBrandId, filterCategoryId, filterManufacturerId, filterActive]);
+  }, [token, q, page, filterBrandId, filterCategoryId, filterManufacturerId, filterActive]);
 
   async function handleDelete(id: string, title: string) {
     if (!confirm(`Deactivate "${title}"? It will be hidden from the storefront.`)) return;
@@ -235,16 +258,16 @@ export default function AdminProductsPage() {
         <input
           className="flex-1 text-sm text-ink outline-none"
           placeholder="Search by title, SKU, or part number…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && (setPage(1), setSelected(new Set()), load())}
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && updateParams({ q: qInput, page: "1" })}
         />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <select
           value={filterBrandId}
-          onChange={(e) => { setFilterBrandId(e.target.value); setPage(1); }}
+          onChange={(e) => updateParams({ brandId: e.target.value, page: "1" })}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
         >
           <option value="">All brands</option>
@@ -252,7 +275,7 @@ export default function AdminProductsPage() {
         </select>
         <select
           value={filterCategoryId}
-          onChange={(e) => { setFilterCategoryId(e.target.value); setPage(1); }}
+          onChange={(e) => updateParams({ categoryId: e.target.value, page: "1" })}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
         >
           <option value="">All categories</option>
@@ -260,7 +283,7 @@ export default function AdminProductsPage() {
         </select>
         <select
           value={filterManufacturerId}
-          onChange={(e) => { setFilterManufacturerId(e.target.value); setPage(1); }}
+          onChange={(e) => updateParams({ manufacturerId: e.target.value, page: "1" })}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
         >
           <option value="">All manufacturers</option>
@@ -268,7 +291,7 @@ export default function AdminProductsPage() {
         </select>
         <select
           value={filterActive}
-          onChange={(e) => { setFilterActive(e.target.value as "" | "true" | "false"); setPage(1); }}
+          onChange={(e) => updateParams({ isActive: e.target.value, page: "1" })}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
         >
           <option value="">All statuses</option>
@@ -277,7 +300,7 @@ export default function AdminProductsPage() {
         </select>
         {(filterBrandId || filterCategoryId || filterManufacturerId || filterActive) && (
           <button
-            onClick={() => { setFilterBrandId(""); setFilterCategoryId(""); setFilterManufacturerId(""); setFilterActive(""); setPage(1); }}
+            onClick={() => updateParams({ brandId: "", categoryId: "", manufacturerId: "", isActive: "", page: "1" })}
             className="text-xs font-medium text-ink-soft hover:text-ink"
           >
             Clear filters
@@ -432,15 +455,23 @@ export default function AdminProductsPage() {
 
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2">
-          <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
+          <button disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
             Prev
           </button>
           <span className="text-sm text-ink-soft">Page {data.page} of {data.totalPages}</span>
-          <button disabled={page >= data.totalPages} onClick={() => setPage((p) => p + 1)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
+          <button disabled={page >= data.totalPages} onClick={() => updateParams({ page: String(page + 1) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
             Next
           </button>
         </div>
       )}
     </div>
+  );
+}
+
+export default function AdminProductsPage() {
+  return (
+    <Suspense fallback={<p className="text-sm text-ink-soft">Loading…</p>}>
+      <AdminProductsPageContent />
+    </Suspense>
   );
 }
