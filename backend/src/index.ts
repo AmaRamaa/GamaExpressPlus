@@ -60,10 +60,13 @@ app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: "5mb" }));
 app.use(morgan("dev"));
 
-// Generic API rate limiter.
+// Generic API rate limiter. A single page view fans out into a dozen-plus
+// calls (header search, categories, product detail, related products,
+// recent/popular search, ...), so 300/15min per IP was getting exhausted by
+// ordinary multi-tab browsing, not abuse.
 app.use(
   "/api",
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false })
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 2000, standardHeaders: true, legacyHeaders: false })
 );
 
 // Tighter limiter on credential-guessing-prone auth routes (login, register,
