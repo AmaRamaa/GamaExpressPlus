@@ -72,6 +72,7 @@ export interface Product {
   descriptionTranslated?: string | null;
   technicalInfo?: string;
   installationNotes?: string;
+  categoryId?: string;
   categorySlug: string;
   categoryName: string;
   brand: Brand;

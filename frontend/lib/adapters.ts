@@ -17,6 +17,7 @@ export function mapProduct(raw: any): Product {
     descriptionTranslated: raw.descriptionTranslated ?? null,
     technicalInfo: raw.technicalInfo || undefined,
     installationNotes: raw.installationNotes || undefined,
+    categoryId: raw.category?.id || raw.categoryId || undefined,
     categorySlug: raw.category?.slug || "",
     categoryName: raw.category?.name || "",
     brand: {
