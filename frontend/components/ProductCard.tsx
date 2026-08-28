@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Heart, ShoppingCart, Eye } from "lucide-react";
 import { Product } from "@/lib/types";
@@ -42,6 +42,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [saving, setSaving] = useState(false);
   const [quickEditError, setQuickEditError] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const displayTitle = titleOverride ?? title;
 
@@ -53,7 +54,13 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
         setEditingField(null);
       }
     }
-    function onClickAway() {
+    // mousedown (not click) fires before the menu's own onClick handlers,
+    // so this must check whether the click originated inside the menu --
+    // relying on the inner button's stopPropagation instead raced this
+    // listener and could unmount the menu (and the button mid-click) before
+    // its click event ever fired.
+    function onClickAway(e: MouseEvent) {
+      if (menuRef.current && menuRef.current.contains(e.target as Node)) return;
       setContextMenu(null);
     }
     document.addEventListener("keydown", onKeyDown);
@@ -123,9 +130,9 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
 
   const quickEditMenu = isAdmin && (contextMenu || editingField === "category") && (
     <div
+      ref={menuRef}
       className="fixed z-50 rounded-lg border border-surface-border bg-surface p-1 shadow-lifted"
       style={{ left: contextMenu?.x ?? 0, top: contextMenu?.y ?? 0 }}
-      onMouseDown={(e) => e.stopPropagation()}
     >
       {editingField === "category" ? (
         <div className="w-56 p-2">
