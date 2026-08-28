@@ -57,14 +57,17 @@ export default function VehicleAutocomplete({
       .then((data) => {
         setFuse(
           new Fuse(data, {
-            keys: [
-              { name: "makeName", weight: 0.35 },
-              { name: "modelName", weight: 0.4 },
-              { name: "generationName", weight: 0.25 },
-            ],
+            // A single combined field (rather than separate weighted
+            // make/model/generation keys) so that extended search's AND
+            // semantics require every query word to be present SOMEWHERE
+            // across the vehicle's full name, not all within one field --
+            // with separate keys, "Audi A3" could never match an entry
+            // since no single field contains both "Audi" and "A3".
+            keys: [{ name: "searchable", getFn: (item) => `${item.makeName} ${item.modelName} ${item.generationName}` }],
             threshold: 0.35, // forgiving of typos, but not so loose it matches everything
             ignoreLocation: true,
             minMatchCharLength: 2,
+            useExtendedSearch: true,
           })
         );
       })
@@ -79,7 +82,15 @@ export default function VehicleAutocomplete({
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, []);
 
-  const results = query.trim().length >= 2 && fuse ? fuse.search(query.trim(), { limit: 8 }).map((r) => r.item) : [];
+  // Fuse's default (non-extended) search fuzzy-matches the query as one
+  // whole string, so a multi-word query like "Audi A3" doesn't require every
+  // word to actually be present -- a loose partial hit on just "Audi" was
+  // enough to surface unrelated results. With `useExtendedSearch` enabled,
+  // space-separated plain (unprefixed) words are ANDed together -- every
+  // word must match somewhere -- while each word individually still matches
+  // fuzzily/typo-tolerantly.
+  const words = query.trim().split(/\s+/).filter((w) => w.length >= 2);
+  const results = words.length > 0 && fuse ? fuse.search(words.join(" "), { limit: 8 }).map((r) => r.item) : [];
 
   function pick(entry: VehicleSearchEntry) {
     onSelect(entry);
