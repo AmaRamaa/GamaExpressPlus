@@ -7,7 +7,7 @@ import type { Locale } from "./i18n";
 // review; stripped from the display title everywhere and surfaced instead
 // as Product.isAiSuggested for a small "AI" tag under the title.
 const AI_PREFIX = "[AI] ";
-function stripAiPrefix(title: string): string {
+export function stripAiPrefix(title: string): string {
   return title.startsWith(AI_PREFIX) ? title.slice(AI_PREFIX.length) : title;
 }
 

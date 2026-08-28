@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { SITE_URL } from "@/lib/constants";
+import { stripAiPrefix } from "@/lib/adapters";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api").replace(/\/+$/, "");
 
@@ -30,7 +31,11 @@ async function getProduct(slug: string): Promise<ProductDetail | null> {
       next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
-    return (await res.json()) as ProductDetail;
+    const product = (await res.json()) as ProductDetail;
+    // This fetches straight from the API, bypassing lib/adapters.ts's
+    // mapProduct -- strip the "[AI] " review marker here too, or it'd leak
+    // into the page <title>, meta description, OG tags and JSON-LD.
+    return { ...product, title: stripAiPrefix(product.title) };
   } catch {
     return null;
   }
