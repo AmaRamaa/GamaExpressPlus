@@ -19,7 +19,7 @@ export const storageConfigured = Boolean(supabaseUrl && supabaseServiceRoleKey);
 // Realtime, no WebSocket dependency) sidesteps the issue entirely.
 // The service role key bypasses Row Level Security -- this client must never be
 // sent to the frontend or used outside of trusted server-side code.
-const storage = storageConfigured
+export const storage = storageConfigured
   ? new StorageClient(`${supabaseUrl}/storage/v1`, {
       apikey: supabaseServiceRoleKey!,
       Authorization: `Bearer ${supabaseServiceRoleKey}`,

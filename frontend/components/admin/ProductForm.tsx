@@ -91,8 +91,10 @@ export function ProductForm({
   // Defaults to navigating to /admin/products, matching the dedicated
   // create/edit admin pages. Pass these when embedding the form elsewhere
   // (e.g. an inline-edit modal on the storefront) so it doesn't navigate
-  // the admin away from the page they were just looking at.
-  onSaved?: () => void;
+  // the admin away from the page they were just looking at. Receives the
+  // created/updated product so a caller can chain something off its id
+  // (e.g. linking a promoted customer submission to the new product).
+  onSaved?: (product?: any) => void;
   onCancel?: () => void;
 }) {
   const router = useRouter();
@@ -511,13 +513,14 @@ export function ProductForm({
 
     setSaving(true);
     try {
+      let saved;
       if (isEdit) {
-        await api.put(`/products/${values.id}`, payload, token);
+        saved = await api.put(`/products/${values.id}`, payload, token);
       } else {
         const staffName = localStorage.getItem("gama-express-staff-name") || undefined;
-        await api.post("/products", { ...payload, ...(staffName ? { staffName } : {}) }, token);
+        saved = await api.post("/products", { ...payload, ...(staffName ? { staffName } : {}) }, token);
       }
-      if (onSaved) onSaved();
+      if (onSaved) onSaved(saved);
       else router.push("/admin/products");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to save product");

@@ -12,7 +12,7 @@ const HREFS = [
     "/products?category=mirrors-glass",
     "/products?category=trim-grilles",
   ],
-  ["/account?tab=orders", "/returns", "/request-part", "/shipping", "/faq"],
+  ["/account?tab=orders", "/returns", "/request-part", "/sell-part", "/shipping", "/faq"],
   ["/business#wholesale", "/business#quote", "/business#invoicing", "/business#locations"],
   ["/about", "/blog", "/careers", "/contact"],
 ];

@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Users,
   Car,
+  Inbox,
   LogOut,
   Menu,
   X,
@@ -25,6 +26,7 @@ import { useAdminStore } from "@/lib/admin-store";
 const LINKS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/products", label: "Products", icon: Package, roles: ["ADMIN", "SUPER_ADMIN", "WAREHOUSE_STAFF"] },
+  { href: "/admin/submissions", label: "Submissions", icon: Inbox, roles: ["ADMIN", "SUPER_ADMIN"] },
   { href: "/admin/brands", label: "Brands", icon: Tags, roles: ["ADMIN", "SUPER_ADMIN"] },
   { href: "/admin/categories", label: "Categories", icon: FolderTree, roles: ["ADMIN", "SUPER_ADMIN"] },
   { href: "/admin/manufacturers", label: "Manufacturers", icon: Factory, roles: ["ADMIN", "SUPER_ADMIN"] },

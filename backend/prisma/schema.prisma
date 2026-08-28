@@ -100,6 +100,13 @@ enum Language {
   EN
 }
 
+enum SubmissionStatus {
+  PENDING   // created, AI screening hasn't finished (or AI is unavailable)
+  REJECTED  // AI decided this isn't a real car part
+  APPROVED  // AI confirmed it's a car part, awaiting an admin to promote it
+  PROMOTED  // an admin turned it into a real Product
+}
+
 // ────────────────────────────────────────────────────────────
 // USERS & ACCOUNTS
 // ────────────────────────────────────────────────────────────
@@ -607,6 +614,29 @@ model PartRequest {
   oemNumber   String?
   status      String   @default("OPEN") // OPEN | SOURCING | FULFILLED | CLOSED
   createdAt   DateTime @default(now())
+}
+
+// A part a customer/visitor offers to sell to the shop, submitted from the
+// public /sell-part page. Deliberately its own model rather than an inactive
+// Product row: it carries fields a real Product never needs (submitter
+// contact info, the AI's raw car-part verdict) and is missing ones a real
+// Product always needs (brand, category, price, partNumber) -- an admin
+// fills those in when promoting it via the normal product form. No relation
+// to Product: promotedProductId is just an id, so this table stays fully
+// independent of the (already large) Product model.
+model ProductSubmission {
+  id                String           @id @default(cuid())
+  createdAt         DateTime         @default(now())
+  submitterName     String
+  submitterEmail    String
+  submitterPhone    String?
+  title             String
+  description       String?          @db.Text
+  images            String[]
+  status            SubmissionStatus @default(PENDING)
+  aiIsCarPart       Boolean?
+  aiReasoning       String?          @db.Text
+  promotedProductId String?
 }
 
 model Notification {

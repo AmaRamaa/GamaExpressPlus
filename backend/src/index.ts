@@ -26,6 +26,7 @@ import quoteRoutes from "./routes/quotes";
 import contentRoutes from "./routes/content";
 import adminRoutes from "./routes/admin";
 import uploadRoutes from "./routes/uploads";
+import submissionRoutes from "./routes/submissions";
 import { prisma } from "./lib/prisma";
 
 const app = express();
@@ -100,6 +101,7 @@ app.use("/api/quotes", quoteRoutes);
 app.use("/api/content", contentRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/uploads", uploadRoutes);
+app.use("/api/submissions", submissionRoutes);
 
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
 
