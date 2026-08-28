@@ -20,12 +20,15 @@ body {
   @apply bg-brand-red/15 text-brand-red-dark;
 }
 
-/* Visible keyboard focus everywhere, per accessibility baseline */
+/* Visible keyboard focus everywhere, per accessibility baseline -- skipped on
+   elements marked `.outline-none`, since those already show focus via their
+   own border-color change (e.g. `focus:border-brand-red`); without this
+   exclusion the two rings stack into a doubled red outline. */
 a:focus-visible,
 button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
+input:focus-visible:not(.outline-none),
+select:focus-visible:not(.outline-none),
+textarea:focus-visible:not(.outline-none) {
   outline: 2px solid #B30000;
   outline-offset: 2px;
 }

@@ -1,4 +1,11 @@
 import "dotenv/config";
+// Must be imported before any route files (which call Router()) — it patches
+// Express's router methods so a rejected promise in an async handler is
+// forwarded to the error middleware instead of becoming an unhandled
+// rejection that crashes the whole process (routes here are async without
+// try/catch, so a single failed query — e.g. DB unreachable — would
+// otherwise take the whole server down instead of just that one request).
+import "express-async-errors";
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";

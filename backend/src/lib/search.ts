@@ -34,6 +34,7 @@ export async function buildProductSearchAnd(q: string) {
       { sku: { contains: t, mode: "insensitive" as const } },
       { brand: { name: { contains: t, mode: "insensitive" as const } } },
       { category: { name: { contains: t, mode: "insensitive" as const } } },
+      { manufacturer: { name: { contains: t, mode: "insensitive" as const } } },
       ...(oemMatchesByToken[i].length ? [{ id: { in: oemMatchesByToken[i].map((r) => r.id) } }] : []),
     ],
   }));

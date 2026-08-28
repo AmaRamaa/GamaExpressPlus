@@ -80,6 +80,7 @@ export default function ProductDetailPage() {
         description: p.description || "",
         categoryId: p.categoryId,
         brandId: p.brandId,
+        manufacturerId: p.manufacturerId || "",
         partNumber: p.partNumber,
         manufacturerNumber: p.manufacturerNumber || "",
         oemNumbers: (p.oemNumbers || []).join(", "),

@@ -16,8 +16,10 @@ interface ProductRow {
   isActive: boolean;
   brandId: string;
   categoryId: string;
+  manufacturerId: string | null;
   brand: { name: string };
   category: { name: string };
+  manufacturer: { name: string } | null;
 }
 
 interface ListResponse {
@@ -45,8 +47,10 @@ export default function AdminProductsPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [brandOptions, setBrandOptions] = useState<FilterOption[]>([]);
   const [categoryOptions, setCategoryOptions] = useState<FilterOption[]>([]);
+  const [manufacturerOptions, setManufacturerOptions] = useState<FilterOption[]>([]);
   const [filterBrandId, setFilterBrandId] = useState("");
   const [filterCategoryId, setFilterCategoryId] = useState("");
+  const [filterManufacturerId, setFilterManufacturerId] = useState("");
   const [filterActive, setFilterActive] = useState<"" | "true" | "false">("");
   const [editingCell, setEditingCell] = useState<{ id: string; field: "price" | "stock" } | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -55,6 +59,7 @@ export default function AdminProductsPage() {
   useEffect(() => {
     api.get<FilterOption[]>("/catalog/brands").then(setBrandOptions).catch(() => {});
     api.get<FilterOption[]>("/catalog/categories").then(setCategoryOptions).catch(() => {});
+    api.get<FilterOption[]>("/catalog/manufacturers").then(setManufacturerOptions).catch(() => {});
   }, []);
 
   function startEdit(row: ProductRow, field: "price" | "stock") {
@@ -174,6 +179,7 @@ export default function AdminProductsPage() {
     if (q) params.set("q", q);
     if (filterBrandId) params.set("brandId", filterBrandId);
     if (filterCategoryId) params.set("categoryId", filterCategoryId);
+    if (filterManufacturerId) params.set("manufacturerId", filterManufacturerId);
     if (filterActive) params.set("isActive", filterActive);
     api
       .get<ListResponse>(`/admin/products?${params.toString()}`, token)
@@ -185,7 +191,7 @@ export default function AdminProductsPage() {
     load();
     setSelected(new Set());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, page, filterBrandId, filterCategoryId, filterActive]);
+  }, [token, page, filterBrandId, filterCategoryId, filterManufacturerId, filterActive]);
 
   async function handleDelete(id: string, title: string) {
     if (!confirm(`Deactivate "${title}"? It will be hidden from the storefront.`)) return;
@@ -245,6 +251,14 @@ export default function AdminProductsPage() {
           {categoryOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         <select
+          value={filterManufacturerId}
+          onChange={(e) => { setFilterManufacturerId(e.target.value); setPage(1); }}
+          className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
+        >
+          <option value="">All manufacturers</option>
+          {manufacturerOptions.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}
+        </select>
+        <select
           value={filterActive}
           onChange={(e) => { setFilterActive(e.target.value as "" | "true" | "false"); setPage(1); }}
           className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-ink"
@@ -253,9 +267,9 @@ export default function AdminProductsPage() {
           <option value="true">Active</option>
           <option value="false">Inactive</option>
         </select>
-        {(filterBrandId || filterCategoryId || filterActive) && (
+        {(filterBrandId || filterCategoryId || filterManufacturerId || filterActive) && (
           <button
-            onClick={() => { setFilterBrandId(""); setFilterCategoryId(""); setFilterActive(""); setPage(1); }}
+            onClick={() => { setFilterBrandId(""); setFilterCategoryId(""); setFilterManufacturerId(""); setFilterActive(""); setPage(1); }}
             className="text-xs font-medium text-ink-soft hover:text-ink"
           >
             Clear filters
@@ -301,6 +315,7 @@ export default function AdminProductsPage() {
               <th className="px-3 py-2 font-medium">SKU</th>
               <th className="px-3 py-2 font-medium">Brand</th>
               <th className="px-3 py-2 font-medium">Category</th>
+              <th className="px-3 py-2 font-medium">Manufacturer</th>
               <th className="px-3 py-2 font-medium text-right">Price</th>
               <th className="px-3 py-2 font-medium text-right">Stock</th>
               <th className="px-3 py-2 font-medium">Status</th>
@@ -320,6 +335,7 @@ export default function AdminProductsPage() {
                 <td className="part-code px-3 py-1.5 text-ink-soft">{p.sku}</td>
                 <td className="px-3 py-1.5 text-ink-soft">{p.brand?.name}</td>
                 <td className="px-3 py-1.5 text-ink-soft">{p.category?.name}</td>
+                <td className="px-3 py-1.5 text-ink-soft">{p.manufacturer?.name || "—"}</td>
                 <td className="px-3 py-1.5 text-right font-medium text-ink">
                   {editingCell?.id === p.id && editingCell.field === "price" ? (
                     <div className="flex items-center justify-end gap-1">
@@ -399,7 +415,7 @@ export default function AdminProductsPage() {
             ))}
             {data && data.items.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-4 py-8 text-center text-ink-soft">No products found.</td>
+                <td colSpan={10} className="px-4 py-8 text-center text-ink-soft">No products found.</td>
               </tr>
             )}
           </tbody>

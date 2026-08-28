@@ -268,6 +268,8 @@ model Manufacturer {
   name    String   @unique // Vehicle OEM manufacturer, e.g. "Volkswagen AG"
   slug    String   @unique
   logoUrl String?
+
+  products Product[]
 }
 
 model Product {
@@ -284,6 +286,8 @@ model Product {
   categoryId    String
   brand         Brand    @relation(fields: [brandId], references: [id])
   brandId       String
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id])
+  manufacturerId String?
 
   oemNumbers    String[] // Cross-referenced OEM part numbers
   partNumber    String
@@ -327,6 +331,7 @@ model Product {
 
   @@index([categoryId])
   @@index([brandId])
+  @@index([manufacturerId])
   @@index([partNumber])
   @@index([sku])
 }

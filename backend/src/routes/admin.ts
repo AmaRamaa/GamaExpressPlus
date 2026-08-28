@@ -187,7 +187,7 @@ router.patch("/inventory/:productId/stock", adminOnly, async (req, res) => {
 // Products — admin listing includes inactive items and supports search plus
 // Excel-style column filters (brand/category/status) for the admin table.
 router.get("/products", adminOrStaffPin, async (req, res) => {
-  const { q, brandId, categoryId, isActive, page = "1", limit = "24" } = req.query as Record<string, string>;
+  const { q, brandId, categoryId, manufacturerId, isActive, page = "1", limit = "24" } = req.query as Record<string, string>;
   const where: any = {};
   if (q) {
     const and = await buildProductSearchAnd(q);
@@ -195,6 +195,7 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
   }
   if (brandId) where.brandId = brandId;
   if (categoryId) where.categoryId = categoryId;
+  if (manufacturerId) where.manufacturerId = manufacturerId;
   if (isActive === "true" || isActive === "false") where.isActive = isActive === "true";
 
   const take = Math.min(Number(limit) || 24, 100);
@@ -206,7 +207,7 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
       orderBy: { createdAt: "desc" },
       take,
       skip,
-      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, brand: true, category: true },
+      include: { images: { orderBy: { sortOrder: "asc" }, take: 1 }, brand: true, category: true, manufacturer: true },
     }),
     prisma.product.count({ where }),
   ]);
@@ -240,6 +241,7 @@ router.get("/products/:id", adminOrStaffPin, async (req, res) => {
       images: { orderBy: { sortOrder: "asc" } },
       brand: true,
       category: true,
+      manufacturer: true,
       compatibility: {
         include: {
           engine: { include: { generation: { include: { model: { include: { make: true } } } } } },

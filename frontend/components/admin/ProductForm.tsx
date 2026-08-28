@@ -10,6 +10,7 @@ import { removeBackgroundFromUrl } from "@/lib/imageProcessing";
 
 interface Brand { id: string; name: string }
 interface Category { id: string; name: string }
+interface Manufacturer { id: string; name: string }
 interface ImageRow { url: string; altText: string; originalUrl?: string }
 interface CompatibilityRow { engineId: string; generationId: string; label: string }
 interface PendingUpload {
@@ -41,6 +42,7 @@ export interface ProductFormValues {
   description: string;
   categoryId: string;
   brandId: string;
+  manufacturerId: string;
   partNumber: string;
   manufacturerNumber: string;
   oemNumbers: string;
@@ -61,6 +63,7 @@ const EMPTY: ProductFormValues = {
   description: "",
   categoryId: "",
   brandId: "",
+  manufacturerId: "",
   partNumber: "",
   manufacturerNumber: "",
   oemNumbers: "",
@@ -96,6 +99,7 @@ export function ProductForm({
   const [values, setValues] = useState<ProductFormValues>({ ...EMPTY, ...initial });
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [manufacturers, setManufacturers] = useState<Manufacturer[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [justCreatedSku, setJustCreatedSku] = useState("");
@@ -131,6 +135,7 @@ export function ProductForm({
   useEffect(() => {
     api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
     api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
+    api.get<Manufacturer[]>("/catalog/manufacturers").then(setManufacturers).catch(() => {});
     if (isAdmin) api.get<VehicleMake[]>("/vehicles/makes").then(setVMakes).catch(() => {});
   }, [isAdmin]);
 
@@ -481,6 +486,7 @@ export function ProductForm({
       description: values.description.trim() || undefined,
       categoryId: values.categoryId || undefined,
       brandId: values.brandId || undefined,
+      manufacturerId: values.manufacturerId || null,
       partNumber: values.partNumber.trim() || undefined,
       manufacturerNumber: values.manufacturerNumber.trim() || undefined,
       oemNumbers: values.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean),
@@ -697,6 +703,15 @@ export function ProductForm({
               <option value="">Select category</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>Manufacturer</label>
+            <select className={inputClass} value={values.manufacturerId} onChange={(e) => set("manufacturerId", e.target.value)}>
+              <option value="">Select manufacturer (optional)</option>
+              {manufacturers.map((m) => (
+                <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
           </div>

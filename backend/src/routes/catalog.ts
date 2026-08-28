@@ -21,6 +21,12 @@ const brandWriteSchema = z.object({
   isOEM: z.boolean().optional(),
 });
 
+const manufacturerWriteSchema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  logoUrl: z.string().optional(),
+});
+
 router.get("/categories", async (_req, res) => {
   const categories = await prisma.category.findMany({
     where: { parentId: null },
@@ -102,6 +108,32 @@ router.delete("/brands/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), a
 router.get("/manufacturers", async (_req, res) => {
   const manufacturers = await prisma.manufacturer.findMany({ orderBy: { name: "asc" } });
   res.json(manufacturers);
+});
+
+router.post("/manufacturers", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const parsed = manufacturerWriteSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  const manufacturer = await prisma.manufacturer.create({ data: parsed.data });
+  res.status(201).json(manufacturer);
+});
+
+router.patch("/manufacturers/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const parsed = manufacturerWriteSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  try {
+    const manufacturer = await prisma.manufacturer.update({ where: { id: req.params.id }, data: parsed.data });
+    res.json(manufacturer);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/manufacturers/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const productCount = await prisma.product.count({ where: { manufacturerId: req.params.id } });
+  if (productCount > 0) return res.status(400).json({ error: `Can't delete: ${productCount} product(s) still use this manufacturer. Move them first.` });
+
+  await prisma.manufacturer.delete({ where: { id: req.params.id } });
+  res.status(204).send();
 });
 
 export default router;
