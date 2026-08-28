@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages, StarOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
@@ -226,6 +226,17 @@ function AdminProductsPageContent() {
     }
   }
 
+  async function handleClearFeatured() {
+    if (!confirm("Remove every product from \"Featured\"? They stay active on the storefront -- this only clears the featured flag so you can pick a fresh set.")) return;
+    try {
+      const { count } = await api.post<{ count: number }>("/admin/products/clear-featured", {}, token);
+      alert(`Cleared ${count} product${count === 1 ? "" : "s"} from Featured.`);
+      load();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Failed to clear featured products");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -245,6 +256,9 @@ function AdminProductsPageContent() {
               <Link href="/admin/reprocess-photos" className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-ink hover:bg-slate-50">
                 <Wand2 size={16} /> Reprocess all photos
               </Link>
+              <button type="button" onClick={handleClearFeatured} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-ink hover:bg-slate-50">
+                <StarOff size={16} /> Clear featured
+              </button>
             </>
           )}
           <Link href="/admin/products/new" className="flex items-center gap-1.5 rounded-lg bg-brand-red px-3.5 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark">

@@ -216,6 +216,15 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
   res.json({ items, total, page: Number(page), limit: take, totalPages: Math.ceil(total / take) });
 });
 
+// One-shot cleanup: unmarks every currently-featured product (they stay
+// active/visible on the storefront, just no longer pulled into the
+// "featured" rail) so an admin can start curating that list from scratch
+// instead of hand-unchecking each one.
+router.post("/products/clear-featured", adminOnly, async (_req, res) => {
+  const { count } = await prisma.product.updateMany({ where: { isFeatured: true }, data: { isFeatured: false } });
+  res.json({ count });
+});
+
 // Feeds the bulk background-removal tool: every active product's full image
 // set (not just the list thumbnail) in one call, so the tool can skip
 // already-processed photos (originalUrl set) and knows the complete image
