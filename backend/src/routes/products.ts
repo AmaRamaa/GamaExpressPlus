@@ -283,6 +283,7 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
   for (let attempt = 0; attempt < 5; attempt++) {
     const slug = attempt === 0 ? baseSlug : `${baseSlug}-${attempt + 1}`;
     try {
+      const isBlankDraft = !parsed.data.title?.trim();
       const product = await prisma.product.create({
         data: {
           ...parsed.data,
@@ -293,6 +294,12 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
           categoryId: parsed.data.categoryId || defaultCategoryId,
           brandId: parsed.data.brandId || defaultBrandId,
           priceEur: parsed.data.priceEur ?? 0,
+          // Same invariant as staff-PIN fast entry: a still-unnamed draft is
+          // never live on the storefront, even after the AI fills it in --
+          // previously this only got set for the STAFF_PIN path above, so an
+          // admin-created blank-title product (or one from an import row with
+          // no title) could sit "live" with an unreviewed "[AI] " title.
+          ...(isBlankDraft ? { isActive: false } : {}),
         },
       });
       if (product.title.startsWith(DRAFT_PREFIX)) {

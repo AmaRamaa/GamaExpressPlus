@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages, StarOff } from "lucide-react";
+import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages, StarOff, EyeOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 
@@ -237,6 +237,23 @@ function AdminProductsPageContent() {
     }
   }
 
+  async function handleHideUnreviewedDrafts() {
+    if (
+      !confirm(
+        'Hide every still-active product titled "[Draft] " or "[AI] " from the storefront? ' +
+          "Nothing is deleted -- finish and re-activate them from Complete drafts whenever you're ready."
+      )
+    )
+      return;
+    try {
+      const { count } = await api.post<{ count: number }>("/admin/products/deactivate-unreviewed-drafts", {}, token);
+      alert(`Hid ${count} unreviewed draft${count === 1 ? "" : "s"} from the storefront.`);
+      load();
+    } catch (e) {
+      alert(e instanceof ApiError ? e.message : "Failed to hide unreviewed drafts");
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -258,6 +275,9 @@ function AdminProductsPageContent() {
               </Link>
               <button type="button" onClick={handleClearFeatured} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-ink hover:bg-slate-50">
                 <StarOff size={16} /> Clear featured
+              </button>
+              <button type="button" onClick={handleHideUnreviewedDrafts} className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3.5 py-2 text-sm font-medium text-ink hover:bg-slate-50">
+                <EyeOff size={16} /> Hide unreviewed drafts
               </button>
             </>
           )}

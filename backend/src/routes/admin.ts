@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { buildProductSearchAnd } from "../lib/search";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth";
-import { DRAFT_PREFIX } from "./products";
+import { DRAFT_PREFIX, AI_PREFIX } from "./products";
 
 const router = Router();
 router.use(requireAuth);
@@ -222,6 +222,22 @@ router.get("/products", adminOrStaffPin, async (req, res) => {
 // instead of hand-unchecking each one.
 router.post("/products/clear-featured", adminOnly, async (_req, res) => {
   const { count } = await prisma.product.updateMany({ where: { isFeatured: true }, data: { isFeatured: false } });
+  res.json({ count });
+});
+
+// One-shot pre-launch cleanup: deactivates every still-active product whose
+// title carries the "[Draft] "/"[AI] " marker -- unreviewed AI drafts (see
+// autoCompleteDraftProduct in products.ts) that a blank-title admin/import
+// create could leave live on the storefront before this endpoint existed
+// (POST /products now forces isActive:false for those going forward; this
+// just retroactively cleans up ones already created active). Nothing is
+// deleted -- an admin can still find and finish these via /admin/complete-drafts,
+// then re-activate through the normal product edit flow.
+router.post("/products/deactivate-unreviewed-drafts", adminOnly, async (_req, res) => {
+  const { count } = await prisma.product.updateMany({
+    where: { isActive: true, OR: [{ title: { startsWith: DRAFT_PREFIX } }, { title: { startsWith: AI_PREFIX } }] },
+    data: { isActive: false },
+  });
   res.json({ count });
 });
 
