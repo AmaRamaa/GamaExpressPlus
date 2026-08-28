@@ -81,7 +81,7 @@ function AdminProductsPageContent() {
 
   useEffect(() => {
     api.get<FilterOption[]>("/catalog/brands").then(setBrandOptions).catch(() => {});
-    api.get<FilterOption[]>("/catalog/categories").then(setCategoryOptions).catch(() => {});
+    api.get<FilterOption[]>("/catalog/categories?includeInternal=true").then(setCategoryOptions).catch(() => {});
     api.get<FilterOption[]>("/catalog/manufacturers").then(setManufacturerOptions).catch(() => {});
   }, []);
 

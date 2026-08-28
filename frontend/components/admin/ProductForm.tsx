@@ -134,7 +134,7 @@ export function ProductForm({
 
   useEffect(() => {
     api.get<Brand[]>("/catalog/brands").then(setBrands).catch(() => {});
-    api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
+    api.get<Category[]>("/catalog/categories?includeInternal=true").then(setCategories).catch(() => {});
     api.get<Manufacturer[]>("/catalog/manufacturers").then(setManufacturers).catch(() => {});
     if (isAdmin) api.get<VehicleMake[]>("/vehicles/makes").then(setVMakes).catch(() => {});
   }, [isAdmin]);

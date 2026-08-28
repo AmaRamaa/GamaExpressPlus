@@ -27,7 +27,7 @@ export default function AdminCategoriesPage() {
   const [moveBusyIds, setMoveBusyIds] = useState<Set<string>>(new Set());
 
   function load() {
-    api.get<Category[]>("/catalog/categories").then(setCategories).catch(() => {});
+    api.get<Category[]>("/catalog/categories?includeInternal=true").then(setCategories).catch(() => {});
   }
 
   useEffect(load, []);

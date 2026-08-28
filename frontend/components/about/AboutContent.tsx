@@ -1,9 +1,9 @@
 "use client";
 
-import { ShieldCheck, Truck, Users, Package } from "lucide-react";
+import { Truck, Users, Package } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
-const statIcons = [Package, Users, ShieldCheck, Truck];
+const statIcons = [Package, Users, Truck];
 
 export default function AboutContent({
   brands,
@@ -24,7 +24,7 @@ export default function AboutContent({
         <p className="mt-4 text-sm leading-relaxed text-ink-soft">{t.about.intro}</p>
       </div>
 
-      <div className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+      <div className="mx-auto mt-10 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-3">
         {t.about.stats.map((s: { value: string; label: string }, i: number) => {
           const Icon = statIcons[i];
           return (

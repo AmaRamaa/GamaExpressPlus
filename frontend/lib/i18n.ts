@@ -434,7 +434,6 @@ const dict = {
       stats: [
         { value: "1.000+", label: "Pjesë eksterne të katalogizuara" },
         { value: "12+", label: "Marka automjetesh të mbuluara" },
-        { value: "24 muaj", label: "Garanci minimale për çdo pjesë" },
         { value: "Po të njëjtën ditë", label: "Dërgesë nga Prishtina" },
       ],
       whatWeStockTitle: "Çfarë kemi në stok",
@@ -864,7 +863,6 @@ const dict = {
       stats: [
         { value: "1,000+", label: "Exterior parts catalogued" },
         { value: "12+", label: "Vehicle makes supported" },
-        { value: "24 mo.", label: "Minimum warranty on every part" },
         { value: "Same-day", label: "Dispatch from Prishtinë" },
       ],
       whatWeStockTitle: "What we stock",

@@ -27,9 +27,14 @@ const manufacturerWriteSchema = z.object({
   logoUrl: z.string().optional(),
 });
 
-router.get("/categories", async (_req, res) => {
+// "unsorted" is the auto-created placeholder bucket for staff-PIN fast-entry
+// products awaiting admin review (see getPlaceholderCategoryAndBrand in
+// products.ts) -- it should never appear in customer-facing nav/filters.
+// Admin screens that need to see or manage it pass includeInternal=true.
+router.get("/categories", async (req, res) => {
+  const includeInternal = req.query.includeInternal === "true";
   const categories = await prisma.category.findMany({
-    where: { parentId: null },
+    where: { parentId: null, ...(includeInternal ? {} : { slug: { not: "unsorted" } }) },
     include: {
       children: { include: { _count: { select: { products: true } } }, orderBy: { sortOrder: "asc" } },
       _count: { select: { products: true } },

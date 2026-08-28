@@ -90,7 +90,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
     setEditValue(product.categoryId || "");
     if (categories.length === 0) {
       try {
-        setCategories(await api.get<CategoryOption[]>("/catalog/categories"));
+        setCategories(await api.get<CategoryOption[]>("/catalog/categories?includeInternal=true"));
       } catch {
         // fall through -- the picker will just show no options, not a crash
       }
