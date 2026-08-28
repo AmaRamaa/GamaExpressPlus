@@ -385,6 +385,9 @@ router.post("/products/import", adminOnly, async (req, res) => {
       oemNumbers: row.oemNumbers
         ? String(row.oemNumbers).split(",").map((s: string) => s.trim()).filter(Boolean)
         : [],
+      // Already-uploaded URLs from the import page's separate photo picker
+      // (matched to this row by sku client-side) -- not a CSV column.
+      images: Array.isArray(row.images) ? row.images.filter((u: any) => typeof u === "string" && u.trim()) : [],
     });
   });
 
@@ -461,6 +464,9 @@ router.post("/products/import", adminOnly, async (req, res) => {
               brandId,
               categoryId,
               manufacturerId,
+              ...(row.images.length > 0
+                ? { images: { create: row.images.map((url: string, i: number) => ({ url, sortOrder: i })) } }
+                : {}),
             },
           });
 

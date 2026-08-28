@@ -52,6 +52,21 @@ interface ImportResult {
   results: { row: number; sku?: string; status: "created" | "error"; error?: string; warning?: string }[];
 }
 
+// Matches product photos to CSV rows by filename, no separate mapping column
+// needed: name each file starting with the row's sku (optionally followed by
+// -1, _2, " (3)", etc. for multiple angles) and it's picked up automatically.
+// Requires a separator after the sku so "BP1.jpg" doesn't also match "BP10".
+function matchImagesToSku(sku: string, files: File[]): File[] {
+  const skuLower = sku.trim().toLowerCase();
+  if (!skuLower) return [];
+  return files
+    .filter((f) => {
+      const base = f.name.replace(/\.[^.]+$/, "").toLowerCase();
+      return base === skuLower || /^[-_ (]/.test(base.slice(skuLower.length)) && base.startsWith(skuLower);
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
 function validateRow(row: RawRow): string[] {
   const errors: string[] = [];
   for (const col of REQUIRED_COLUMNS) {
@@ -85,6 +100,8 @@ export default function AdminImportPage() {
   const [parseError, setParseError] = useState("");
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
 
   function handleRows(raw: RawRow[]) {
     setRows(raw.map((data) => ({ data, errors: validateRow(data) })));
@@ -130,7 +147,29 @@ export default function AdminImportPage() {
   async function handleImport() {
     if (validRows.length === 0) return;
     setImporting(true);
+    setParseError("");
     try {
+      // Upload every selected photo first (sequential -- this already waits
+      // on network round-trips, and keeps memory/error-handling simple for
+      // what's normally a few dozen files at most), then match each row's
+      // sku against the uploaded filenames.
+      const uploadedBySku = new Map<string, string[]>();
+      if (imageFiles.length > 0) {
+        setUploadProgress({ done: 0, total: imageFiles.length });
+        const urlByFile = new Map<File, string>();
+        for (const file of imageFiles) {
+          const fd = new FormData();
+          fd.append("file", file);
+          const { url } = await api.upload<{ url: string }>("/uploads", fd, token);
+          urlByFile.set(file, url);
+          setUploadProgress((p) => (p ? { ...p, done: p.done + 1 } : p));
+        }
+        for (const r of validRows) {
+          const matched = matchImagesToSku(r.data.sku, imageFiles).map((f) => urlByFile.get(f)!);
+          if (matched.length > 0) uploadedBySku.set(r.data.sku, matched);
+        }
+      }
+
       const payload = validRows.map((r) => ({
         sku: r.data.sku,
         title: r.data.title,
@@ -152,6 +191,7 @@ export default function AdminImportPage() {
         vehicleMake: r.data.vehicleMake,
         vehicleModel: r.data.vehicleModel,
         vehicleYear: r.data.vehicleYear,
+        images: uploadedBySku.get(r.data.sku),
       }));
       const res = await api.post<ImportResult>("/admin/products/import", { rows: payload }, token);
       setResult(res);
@@ -159,6 +199,7 @@ export default function AdminImportPage() {
       setParseError(err instanceof ApiError ? err.message : "Import failed");
     } finally {
       setImporting(false);
+      setUploadProgress(null);
     }
   }
 
@@ -199,6 +240,46 @@ export default function AdminImportPage() {
           <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
         </label>
         {parseError && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-600">{parseError}</p>}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <p className="mb-1 text-sm font-medium text-ink">Product photos (optional)</p>
+        <p className="mb-4 text-xs text-ink-soft">
+          Select all the photos at once — each file is matched to a row by its <strong className="text-ink">sku</strong>.
+          Name a file exactly as the sku (e.g. <span className="part-code">BP1023.jpg</span>) for a single photo, or
+          add anything after a <span className="part-code">-</span>, <span className="part-code">_</span> or space for
+          multiple angles (<span className="part-code">BP1023-1.jpg</span>, <span className="part-code">BP1023-2.jpg</span>,
+          …) — they&apos;re attached in filename order, so the first one becomes the main photo.
+        </p>
+
+        <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 py-8 text-center hover:border-brand-red">
+          <Upload size={22} className="text-slate-400" />
+          <span className="text-sm font-medium text-ink">
+            {imageFiles.length > 0 ? `${imageFiles.length} photo(s) selected` : "Click to choose photos"}
+          </span>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+            className="hidden"
+          />
+        </label>
+
+        {imageFiles.length > 0 && rows.length > 0 && (() => {
+          const matchedFiles = new Set(validRows.flatMap((r) => matchImagesToSku(r.data.sku, imageFiles)));
+          const unmatched = imageFiles.filter((f) => !matchedFiles.has(f));
+          return (
+            <div className="mt-3 text-xs text-ink-soft">
+              <p>{matchedFiles.size} of {imageFiles.length} photo(s) matched to a row.</p>
+              {unmatched.length > 0 && (
+                <p className="mt-1 text-amber-600">
+                  Not matched to any sku: {unmatched.map((f) => f.name).join(", ")}
+                </p>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
@@ -281,7 +362,11 @@ export default function AdminImportPage() {
             className="flex items-center gap-2 rounded-lg bg-brand-red px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:opacity-60"
           >
             <FileSpreadsheet size={16} />
-            {importing ? "Importing…" : `Import ${validRows.length} products`}
+            {uploadProgress
+              ? `Uploading photos… (${uploadProgress.done}/${uploadProgress.total})`
+              : importing
+              ? "Importing…"
+              : `Import ${validRows.length} products`}
           </button>
         </div>
       )}
