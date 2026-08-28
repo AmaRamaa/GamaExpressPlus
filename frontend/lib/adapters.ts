@@ -1,14 +1,26 @@
 import type { Product, Brand, Category } from "./types";
 import type { Locale } from "./i18n";
 
+// Mirrors backend/src/routes/products.ts's AI_PREFIX -- the two codebases
+// don't share a module, so this has to stay in sync by hand. It marks a
+// title the AI auto-complete flow filled in that's still awaiting human
+// review; stripped from the display title everywhere and surfaced instead
+// as Product.isAiSuggested for a small "AI" tag under the title.
+const AI_PREFIX = "[AI] ";
+function stripAiPrefix(title: string): string {
+  return title.startsWith(AI_PREFIX) ? title.slice(AI_PREFIX.length) : title;
+}
+
 // Converts the backend's raw Prisma-shaped product (relations included) into
 // the flatter Product type the storefront UI was built against.
 export function mapProduct(raw: any): Product {
+  const rawTitle: string = raw.title || "";
   return {
     id: raw.id,
     sku: raw.sku,
     slug: raw.slug,
-    title: raw.title,
+    title: stripAiPrefix(rawTitle),
+    isAiSuggested: rawTitle.startsWith(AI_PREFIX),
     shortDescription: raw.shortDescription || "",
     description: raw.description || "",
     contentLanguage: raw.contentLanguage ?? null,
@@ -70,7 +82,7 @@ export function localizeProductText(
     return { title: product.title, shortDescription: product.shortDescription, description: product.description };
   }
   return {
-    title: product.titleTranslated || product.title,
+    title: stripAiPrefix(product.titleTranslated || product.title),
     shortDescription: product.shortDescriptionTranslated || product.shortDescription,
     description: product.descriptionTranslated || product.description,
   };

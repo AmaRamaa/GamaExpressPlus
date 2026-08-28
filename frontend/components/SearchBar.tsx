@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Search, Clock, TrendingUp, Tags, FolderTree, ArrowRight } from "lucide-react";
+import { Search, Clock, TrendingUp, Tags, FolderTree, ArrowRight, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
 import { getEffectivePrice } from "@/lib/pricing";
@@ -16,6 +16,7 @@ interface SuggestedProduct {
   priceEur: number;
   discountPriceEur: number | null;
   partNumber: string;
+  isAiSuggested?: boolean;
 }
 interface SuggestedTag {
   id: string;
@@ -140,6 +141,11 @@ export default function SearchBar() {
                         >
                           <div className="flex-1">
                             <p className="text-sm font-medium text-ink">{p.title}</p>
+                            {p.isAiSuggested && (
+                              <span className="mb-0.5 mt-0.5 inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-red">
+                                <Sparkles size={9} /> AI
+                              </span>
+                            )}
                             <PartCode label="Part No.">{p.partNumber}</PartCode>
                           </div>
                           {user ? (

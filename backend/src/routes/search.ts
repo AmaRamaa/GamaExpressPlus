@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma";
 import { buildProductSearchAnd } from "../lib/search";
 import { optionalAuth, AuthedRequest } from "../middleware/auth";
+import { AI_PREFIX } from "./products";
 
 const router = Router();
 
@@ -12,7 +13,7 @@ router.get("/suggest", async (req, res) => {
 
   const and = await buildProductSearchAnd(q);
 
-  const [products, categories, brands] = await Promise.all([
+  const [rawProducts, categories, brands] = await Promise.all([
     prisma.product.findMany({
       where: { isActive: true, ...(and ? { AND: and } : {}) },
       take: 6,
@@ -21,6 +22,15 @@ router.get("/suggest", async (req, res) => {
     prisma.category.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4, select: { id: true, name: true, slug: true } }),
     prisma.brand.findMany({ where: { name: { contains: q, mode: "insensitive" } }, take: 4, select: { id: true, name: true, slug: true } }),
   ]);
+
+  // The "[AI] " marker is a review-status flag, not part of the title --
+  // strip it here so it never leaks into customer-facing UI; the isAiSuggested
+  // flag lets the dropdown show its own "AI" tag instead.
+  const products = rawProducts.map((p) => ({
+    ...p,
+    isAiSuggested: p.title.startsWith(AI_PREFIX),
+    title: p.title.startsWith(AI_PREFIX) ? p.title.slice(AI_PREFIX.length) : p.title,
+  }));
 
   res.json({ products, categories, brands });
 });

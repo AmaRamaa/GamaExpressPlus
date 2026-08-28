@@ -240,8 +240,9 @@ function AdminProductsPageContent() {
   async function handleHideUnreviewedDrafts() {
     if (
       !confirm(
-        'Hide every still-active product titled "[Draft] " or "[AI] " from the storefront? ' +
-          "Nothing is deleted -- finish and re-activate them from Complete drafts whenever you're ready."
+        'Hide every still-active product titled bare "[Draft] " (nothing filled in yet) from the storefront? ' +
+          '"[AI] " products are left alone -- those already have real content and stay live with an AI-suggested marker. ' +
+          "Nothing is deleted -- finish and re-activate drafts from Complete drafts whenever you're ready."
       )
     )
       return;

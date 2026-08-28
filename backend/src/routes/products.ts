@@ -586,6 +586,12 @@ async function autoCompleteDraftProduct(productId: string) {
       // the manual "Use this" button being disabled for unmatched names.
       ...(matchedBrand ? { brandId: matchedBrand.id } : {}),
       ...(matchedCategory ? { categoryId: matchedCategory.id } : {}),
+      // A bare "[Draft] " placeholder has nothing worth showing (literally
+      // just a SKU) and stays inactive, but once the AI has filled in a real
+      // title/description it's fine to be live -- the storefront shows an
+      // "AI-suggested" marker on it rather than hiding it until a human
+      // gets to it, which could otherwise sit invisible indefinitely.
+      isActive: true,
     },
   });
   // Now that there's a real title/description, it's worth translating too.

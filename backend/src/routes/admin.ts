@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { buildProductSearchAnd } from "../lib/search";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth";
-import { DRAFT_PREFIX, AI_PREFIX } from "./products";
+import { DRAFT_PREFIX } from "./products";
 
 const router = Router();
 router.use(requireAuth);
@@ -226,16 +226,18 @@ router.post("/products/clear-featured", adminOnly, async (_req, res) => {
 });
 
 // One-shot pre-launch cleanup: deactivates every still-active product whose
-// title carries the "[Draft] "/"[AI] " marker -- unreviewed AI drafts (see
-// autoCompleteDraftProduct in products.ts) that a blank-title admin/import
-// create could leave live on the storefront before this endpoint existed
-// (POST /products now forces isActive:false for those going forward; this
-// just retroactively cleans up ones already created active). Nothing is
-// deleted -- an admin can still find and finish these via /admin/complete-drafts,
-// then re-activate through the normal product edit flow.
+// title is still a bare "[Draft] " placeholder (nothing filled in -- just a
+// SKU) that a blank-title admin/import create could leave live before this
+// endpoint existed (POST /products now forces isActive:false for those
+// going forward; this just retroactively cleans up ones already created
+// active). "[AI] "-titled products are deliberately left alone -- once the
+// AI has filled in a real title/description they're meant to be live, shown
+// with an "AI-suggested" marker rather than hidden until a human reviews
+// them. Nothing is deleted -- an admin can still find and finish drafts via
+// /admin/complete-drafts, then re-activate through the normal edit flow.
 router.post("/products/deactivate-unreviewed-drafts", adminOnly, async (_req, res) => {
   const { count } = await prisma.product.updateMany({
-    where: { isActive: true, OR: [{ title: { startsWith: DRAFT_PREFIX } }, { title: { startsWith: AI_PREFIX } }] },
+    where: { isActive: true, title: { startsWith: DRAFT_PREFIX } },
     data: { isActive: false },
   });
   res.json({ count });

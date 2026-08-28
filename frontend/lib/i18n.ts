@@ -55,6 +55,13 @@ const dict = {
       deliveryEstimate: "Dërgesë brenda 1–3 ditësh pune",
       soldByLabel: "Shitet nga",
     },
+    notFoundPage: {
+      code: "404",
+      heading: "Kjo faqe nuk u gjet",
+      desc: "Faqja që kërkove mund të jetë zhvendosur ose nuk ekziston më. Provo të kërkosh pjesën që të duhet, ose kthehu në fillim.",
+      browseButton: "Shfleto të gjitha pjesët",
+      homeButton: "Kthehu në fillim",
+    },
     home: {
       badge: "Gama Express · Katalogu i pjesëve eksterne të Kosovës",
       heroTitle1: "Pjesa e saktë e karrocerisë,",
@@ -528,6 +535,13 @@ const dict = {
       formErrorGeneric: "Something went wrong. Please try again or call us.",
       deliveryEstimate: "Delivery in 1–3 business days",
       soldByLabel: "Sold by",
+    },
+    notFoundPage: {
+      code: "404",
+      heading: "This page couldn't be found",
+      desc: "The page you're looking for may have moved or no longer exists. Try searching for the part you need, or head back home.",
+      browseButton: "Browse all parts",
+      homeButton: "Back to home",
     },
     home: {
       badge: "Gama Express · Kosovo's exterior parts catalog",

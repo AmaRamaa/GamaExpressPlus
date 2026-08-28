@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, Truck, Store, Minus, Plus, Pencil, X } from "lucide-react";
+import { Heart, ShoppingCart, Truck, Store, Minus, Plus, Pencil, X, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { mapProduct, localizeProductText } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
@@ -229,7 +229,16 @@ export default function ProductDetailPage() {
               <StockBadge status={product.stockStatus} />
             </div>
           </div>
-          <h1 className="mb-2 font-display text-3xl font-bold text-ink">{title}</h1>
+          <h1 className="font-display text-3xl font-bold text-ink">{title}</h1>
+          {product.isAiSuggested && (
+            <span
+              title="AI-suggested listing, pending review"
+              className="mb-2 mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brand-red"
+            >
+              <Sparkles size={11} /> AI-suggested
+            </span>
+          )}
+          {!product.isAiSuggested && <div className="mb-2" />}
 
           <div className="my-4 flex flex-wrap gap-x-6 gap-y-2">
             <PartCode label="SKU">{product.sku}</PartCode>

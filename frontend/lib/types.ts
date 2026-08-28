@@ -89,6 +89,10 @@ export interface Product {
   imageUrl?: string;
   imageUrls?: string[];
   locationCompany: string;
+  // True when the AI auto-complete flow filled this in and it's still
+  // awaiting a human review -- the "[AI] " marker is stripped from `title`
+  // before it ever reaches the UI; show this as a small tag instead.
+  isAiSuggested?: boolean;
 }
 
 export interface CartLine {

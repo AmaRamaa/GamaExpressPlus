@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Heart, ShoppingCart, Eye } from "lucide-react";
+import { Heart, ShoppingCart, Eye, Sparkles } from "lucide-react";
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
 import { useAdminStore } from "@/lib/admin-store";
@@ -45,6 +45,15 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
   const menuRef = useRef<HTMLDivElement>(null);
 
   const displayTitle = titleOverride ?? title;
+
+  const aiTag = product.isAiSuggested && (
+    <span
+      title="AI-suggested listing, pending review"
+      className="inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-red"
+    >
+      <Sparkles size={10} /> AI
+    </span>
+  );
 
   useEffect(() => {
     if (!contextMenu && editingField === null) return;
@@ -192,6 +201,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
         ) : (
           <Link href={`/products/${product.slug}`} className="min-w-0 flex-1">
             <span className="block truncate text-sm font-medium text-ink group-hover/row:text-brand-red">{displayTitle}</span>
+            {aiTag}
           </Link>
         )}
 
@@ -269,6 +279,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
           <h3 className="mb-1.5 line-clamp-2 font-display text-base font-semibold leading-snug text-ink hover:text-brand-red">
             {displayTitle}
           </h3>
+          {aiTag && <div className="-mt-1 mb-1.5">{aiTag}</div>}
         </Link>
       )}
 
