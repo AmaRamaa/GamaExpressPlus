@@ -10,6 +10,7 @@ import ProductVisual from "./ProductVisual";
 import ProductPrice from "./ProductPrice";
 import QuickviewModal from "./QuickviewModal";
 import { useT } from "@/lib/i18n";
+import { localizeProductText } from "@/lib/adapters";
 import clsx from "clsx";
 
 export default function ProductCard({ product, layout = "grid" }: { product: Product; layout?: "grid" | "list" }) {
@@ -17,7 +18,8 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const isWishlisted = useStore((s) => s.wishlist.includes(product.id));
   const [quickviewOpen, setQuickviewOpen] = useState(false);
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { title } = localizeProductText(product, locale);
 
   if (layout === "list") {
     return (
@@ -35,7 +37,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
         <StockBadge status={product.stockStatus} />
 
         <Link href={`/products/${product.slug}`} className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-ink group-hover/row:text-brand-red">{product.title}</span>
+          <span className="block truncate text-sm font-medium text-ink group-hover/row:text-brand-red">{title}</span>
         </Link>
 
         <span className="hidden shrink-0 text-xs uppercase tracking-wide text-ink-soft md:block">{product.brand.name}</span>
@@ -97,7 +99,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
 
       <Link href={`/products/${product.slug}`}>
         <h3 className="mb-1.5 line-clamp-2 font-display text-base font-semibold leading-snug text-ink hover:text-brand-red">
-          {product.title}
+          {title}
         </h3>
       </Link>
 

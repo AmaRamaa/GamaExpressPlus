@@ -282,6 +282,16 @@ model Product {
   technicalInfo     String?  @db.Text
   installationNotes String?  @db.Text
 
+  // Auto-translated counterpart of title/shortDescription/description --
+  // whichever language the product was originally entered in is recorded
+  // here so the storefront can pick the right side for the visitor's
+  // chosen locale. Populated by the AI translation service, never
+  // admin-writable directly.
+  contentLanguage            Language?
+  titleTranslated            String?
+  shortDescriptionTranslated String?
+  descriptionTranslated      String?  @db.Text
+
   category      Category @relation(fields: [categoryId], references: [id])
   categoryId    String
   brand         Brand    @relation(fields: [brandId], references: [id])

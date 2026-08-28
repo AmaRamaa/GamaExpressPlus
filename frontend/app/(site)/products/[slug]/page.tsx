@@ -5,8 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus, Pencil, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
-import { mapProduct } from "@/lib/adapters";
+import { mapProduct, localizeProductText } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
+import { useT } from "@/lib/i18n";
 import { useAdminStore } from "@/lib/admin-store";
 import { PartCode, StockBadge } from "@/components/ui-bits";
 import ProductCard from "@/components/ProductCard";
@@ -21,6 +22,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
+  const { locale } = useT();
 
   const [product, setProduct] = useState<Product | null>(null);
   const isWishlisted = useStore((s) => s.wishlist.includes(product?.id ?? ""));
@@ -165,12 +167,14 @@ export default function ProductDetailPage() {
     );
   }
 
+  const { title, shortDescription, description } = localizeProductText(product, locale);
+
   return (
     <div className="container-page py-8">
       <nav className="mb-6 text-xs text-ink-soft">
         <Link href="/" className="hover:text-brand-red">Home</Link> /{" "}
         <Link href="/products" className="hover:text-brand-red">{product.categoryName}</Link> /{" "}
-        <span className="text-ink">{product.title}</span>
+        <span className="text-ink">{title}</span>
       </nav>
 
       <div className="grid gap-10 lg:grid-cols-2">
@@ -224,7 +228,7 @@ export default function ProductDetailPage() {
               <StockBadge status={product.stockStatus} />
             </div>
           </div>
-          <h1 className="mb-2 font-display text-3xl font-bold text-ink">{product.title}</h1>
+          <h1 className="mb-2 font-display text-3xl font-bold text-ink">{title}</h1>
 
           <div className="my-4 flex flex-wrap gap-x-6 gap-y-2">
             <PartCode label="SKU">{product.sku}</PartCode>
@@ -232,7 +236,7 @@ export default function ProductDetailPage() {
             {product.oemNumbers.map((oem) => <PartCode key={oem} label="OEM">{oem}</PartCode>)}
           </div>
 
-          <p className="mb-5 text-sm leading-relaxed text-ink-soft">{product.shortDescription}</p>
+          <p className="mb-5 text-sm leading-relaxed text-ink-soft">{shortDescription}</p>
 
           <div className="mb-5 rounded-xl border border-surface-border bg-surface p-5">
             <ProductPrice product={product} />
@@ -290,7 +294,7 @@ export default function ProductDetailPage() {
       <div className="py-8">
         {tab === "Overview" && (
           <div className="max-w-3xl space-y-4 text-sm leading-relaxed text-ink-soft">
-            <p>{product.description}</p>
+            <p>{description}</p>
             {product.installationNotes && (
               <div>
                 <p className="mb-1 font-semibold text-ink">Installation notes</p>

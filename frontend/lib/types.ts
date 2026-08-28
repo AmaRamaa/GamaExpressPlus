@@ -63,6 +63,13 @@ export interface Product {
   title: string;
   shortDescription: string;
   description: string;
+  // Whichever language title/shortDescription/description were originally
+  // entered in, plus the auto-generated counterpart in the other language --
+  // null/undefined until the translation service has run on this product.
+  contentLanguage?: "SQ" | "EN" | null;
+  titleTranslated?: string | null;
+  shortDescriptionTranslated?: string | null;
+  descriptionTranslated?: string | null;
   technicalInfo?: string;
   installationNotes?: string;
   categorySlug: string;

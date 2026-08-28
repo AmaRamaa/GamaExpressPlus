@@ -7,6 +7,14 @@ import { requireAuth, requireRole, AuthedRequest } from "../middleware/auth";
 
 const router = Router();
 
+// Title markers for products the AI tooling owns until a human takes over.
+// "[Draft] " = staff-PIN fast entry, nothing filled in yet. "[AI] " = the
+// draft auto-complete flow has filled it in and it's awaiting review. Either
+// marker is stripped the moment an admin saves the product (see PUT /:id),
+// which is also what tells the AI tools to leave it alone from then on.
+export const DRAFT_PREFIX = "[Draft] ";
+export const AI_PREFIX = "[AI] ";
+
 // Whitelists exactly which fields an admin request can set — prevents mass
 // assignment via extra/unexpected keys in the request body (e.g. someone
 // tampering with fields Prisma would otherwise happily write straight from
@@ -237,7 +245,7 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
           data: {
             sku: parsed.data.sku,
             slug,
-            title: `[Draft] ${parsed.data.sku}`,
+            title: `${DRAFT_PREFIX}${parsed.data.sku}`,
             partNumber,
             description: parsed.data.description?.trim() || undefined,
             categoryId,
@@ -248,6 +256,7 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
             images: parsed.data.images,
           },
         });
+        autoCompleteDraftProduct(product.id).catch((err) => console.error("Draft auto-complete failed:", err.message));
         return res.status(201).json(product);
       } catch (err: any) {
         if (err.code === "P2002" && err.meta?.target?.includes("slug")) continue;
@@ -278,13 +287,18 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
           ...parsed.data,
           sku,
           slug,
-          title: parsed.data.title?.trim() || `[Draft] ${sku}`,
+          title: parsed.data.title?.trim() || `${DRAFT_PREFIX}${sku}`,
           partNumber: parsed.data.partNumber?.trim() || sku,
           categoryId: parsed.data.categoryId || defaultCategoryId,
           brandId: parsed.data.brandId || defaultBrandId,
           priceEur: parsed.data.priceEur ?? 0,
         },
       });
+      if (product.title.startsWith(DRAFT_PREFIX)) {
+        autoCompleteDraftProduct(product.id).catch((err) => console.error("Draft auto-complete failed:", err.message));
+      } else {
+        translateProductFields(product.id).catch((err) => console.error("Product translation failed:", err.message));
+      }
       return res.status(201).json(product);
     } catch (err: any) {
       if (err.code === "P2002" && err.meta?.target?.includes("slug")) continue;
@@ -313,8 +327,21 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
     data.compatibility = { deleteMany: {}, create: parsed.data.compatibility.create ?? [] };
   }
 
+  // Any save through this route means a human (or the fast-entry device) is
+  // now handling this product -- strip a leftover "[Draft] "/"[AI] " marker
+  // even if this particular save didn't touch the title, so neither the
+  // draft auto-complete nor the translation/bulk tools ever touch it again.
+  if (data.title === undefined) {
+    const current = await prisma.product.findUnique({ where: { id: req.params.id }, select: { title: true } });
+    if (current?.title.startsWith(DRAFT_PREFIX)) data.title = current.title.slice(DRAFT_PREFIX.length);
+    else if (current?.title.startsWith(AI_PREFIX)) data.title = current.title.slice(AI_PREFIX.length);
+  }
+
   try {
     const product = await prisma.product.update({ where: { id: req.params.id }, data });
+    if (data.title !== undefined || parsed.data.shortDescription !== undefined || parsed.data.description !== undefined) {
+      translateProductFields(product.id).catch((err) => console.error("Product translation failed:", err.message));
+    }
     res.json(product);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
@@ -324,6 +351,97 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
 router.delete("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req: AuthedRequest, res) => {
   await prisma.product.update({ where: { id: req.params.id }, data: { isActive: false } });
   res.status(204).send();
+});
+
+const translateSchema = z.object({
+  detectedLanguage: z.enum(["SQ", "EN"]),
+  titleTranslated: z.string(),
+  shortDescriptionTranslated: z.string(),
+  descriptionTranslated: z.string(),
+});
+
+// Detects whether a product's title/shortDescription/description are
+// written in Albanian or English, then generates the counterpart in the
+// other language so the storefront can show the right one for the
+// visitor's chosen locale. Shared by the explicit POST /:id/translate route
+// and the fire-and-forget hook after create/update -- callers that want a
+// user-facing error should catch and report; the fire-and-forget hook just
+// logs, matching how /analyze-photos degrades (never blocks core CRUD).
+async function translateProductFields(productId: string) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    throw new Error("AI translation isn't configured yet (missing ANTHROPIC_API_KEY).");
+  }
+
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    select: { title: true, shortDescription: true, description: true },
+  });
+  if (!product) throw new Error("Product not found");
+  // Draft/placeholder titles (e.g. "[Draft] G-042" from staff fast-entry)
+  // aren't worth translating yet -- nothing to do until a real title exists.
+  if (!product.title?.trim() || product.title.startsWith(DRAFT_PREFIX)) return null;
+
+  const client = new Anthropic();
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 1536,
+    system:
+      "You translate auto-parts catalog listings for a Kosovo store between Albanian (SQ) and English (EN). " +
+      "First detect which of those two languages the given text is written in, then translate all fields into the OTHER language. " +
+      "Keep SKUs, part numbers, OEM codes, and brand/manufacturer names unchanged. Keep the tone concise and factual, matching a parts-catalog listing. " +
+      "If a field is empty, return an empty string for its translation.",
+    messages: [
+      {
+        role: "user",
+        content:
+          `Title: ${product.title}\n` +
+          `Short description: ${product.shortDescription || "(empty)"}\n` +
+          `Description: ${product.description || "(empty)"}`,
+      },
+    ],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            detectedLanguage: { type: "string", enum: ["SQ", "EN"] },
+            titleTranslated: { type: "string" },
+            shortDescriptionTranslated: { type: "string" },
+            descriptionTranslated: { type: "string" },
+          },
+          required: ["detectedLanguage", "titleTranslated", "shortDescriptionTranslated", "descriptionTranslated"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+
+  const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+  if (!textBlock) throw new Error("The AI didn't return a usable translation.");
+
+  const result = translateSchema.safeParse(JSON.parse(textBlock.text));
+  if (!result.success) throw new Error("The AI's response didn't match the expected format.");
+
+  return prisma.product.update({
+    where: { id: productId },
+    data: {
+      contentLanguage: result.data.detectedLanguage,
+      titleTranslated: result.data.titleTranslated || null,
+      shortDescriptionTranslated: result.data.shortDescriptionTranslated || null,
+      descriptionTranslated: result.data.descriptionTranslated || null,
+    },
+  });
+}
+
+router.post("/:id/translate", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  try {
+    const updated = await translateProductFields(req.params.id);
+    if (!updated) return res.json({ skipped: true, reason: "Product has no real title yet." });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(502).json({ error: err.message || "Translation failed." });
+  }
 });
 
 const analyzeSchema = z.object({
@@ -344,16 +462,14 @@ const aiSuggestionSchema = z.object({
   vehicleConfidence: z.enum(["low", "medium", "high"]),
 });
 
-// Admin-only and not free (a few thousand tokens per call on Claude Haiku
-// 4.5 -- roughly half a cent), so it's opt-in per product rather than
-// running automatically on upload.
-router.post("/analyze-photos", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+// Shared by the manual "Analyze photos" button (/analyze-photos below) and
+// the automatic draft-completion flow (autoCompleteDraftProduct) -- same
+// prompt/model/schema either way, just different callers decide whether to
+// show the suggestion for confirmation or auto-apply it.
+async function analyzeProductPhotos(imageUrls: string[]) {
   if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(503).json({ error: "AI photo analysis isn't configured yet (missing ANTHROPIC_API_KEY)." });
+    throw new Error("AI photo analysis isn't configured yet (missing ANTHROPIC_API_KEY).");
   }
-
-  const parsed = analyzeSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const [brands, categories] = await Promise.all([
     prisma.brand.findMany({ select: { name: true }, orderBy: { name: "asc" } }),
@@ -361,64 +477,121 @@ router.post("/analyze-photos", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"),
   ]);
 
   const client = new Anthropic();
-
-  try {
-    const response = await client.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      system:
-        "You are helping a Kosovo auto-parts store catalog photos of exterior car parts (bumpers, lights, mirrors, glass, trim, body panels). " +
-        "Look at the photo(s) of a single part and suggest catalog fields. " +
-        "For brand, prefer one of the store's existing brand names if the part's brand is visibly identifiable (a logo, an OEM label); otherwise say \"Unknown\". " +
-        "For category, pick the closest match from the store's existing category names. " +
-        "For vehicleCompatibilityGuess, only guess a specific make/model/years if there's a real visual clue (a badge, a distinctive shape you recognize, visible OEM/part numbers) -- otherwise say \"Not enough visual information to determine compatibility.\" and set vehicleConfidence to \"low\". Never invent a specific vehicle with no supporting evidence.",
-      messages: [
-        {
-          role: "user",
-          content: [
-            ...parsed.data.imageUrls.map((url) => ({ type: "image" as const, source: { type: "url" as const, url } })),
-            {
-              type: "text" as const,
-              text:
-                `Existing brands: ${brands.map((b) => b.name).join(", ") || "(none yet)"}\n` +
-                `Existing categories: ${categories.map((c) => c.name).join(", ") || "(none yet)"}\n\n` +
-                "Suggest catalog fields for this part.",
-            },
-          ],
-        },
-      ],
-      output_config: {
-        format: {
-          type: "json_schema",
-          schema: {
-            type: "object",
-            properties: {
-              title: { type: "string" },
-              brand: { type: "string" },
-              category: { type: "string" },
-              shortDescription: { type: "string" },
-              vehicleCompatibilityGuess: { type: "string" },
-              vehicleConfidence: { type: "string", enum: ["low", "medium", "high"] },
-            },
-            required: ["title", "brand", "category", "shortDescription", "vehicleCompatibilityGuess", "vehicleConfidence"],
-            additionalProperties: false,
+  const response = await client.messages.create({
+    model: "claude-haiku-4-5",
+    max_tokens: 1024,
+    system:
+      "You are helping a Kosovo auto-parts store catalog photos of exterior car parts (bumpers, lights, mirrors, glass, trim, body panels). " +
+      "Look at the photo(s) of a single part and suggest catalog fields. " +
+      "For brand, prefer one of the store's existing brand names if the part's brand is visibly identifiable (a logo, an OEM label); otherwise say \"Unknown\". " +
+      "For category, pick the closest match from the store's existing category names. " +
+      "For vehicleCompatibilityGuess, only guess a specific make/model/years if there's a real visual clue (a badge, a distinctive shape you recognize, visible OEM/part numbers) -- otherwise say \"Not enough visual information to determine compatibility.\" and set vehicleConfidence to \"low\". Never invent a specific vehicle with no supporting evidence.",
+    messages: [
+      {
+        role: "user",
+        content: [
+          ...imageUrls.map((url) => ({ type: "image" as const, source: { type: "url" as const, url } })),
+          {
+            type: "text" as const,
+            text:
+              `Existing brands: ${brands.map((b) => b.name).join(", ") || "(none yet)"}\n` +
+              `Existing categories: ${categories.map((c) => c.name).join(", ") || "(none yet)"}\n\n` +
+              "Suggest catalog fields for this part.",
           },
+        ],
+      },
+    ],
+    output_config: {
+      format: {
+        type: "json_schema",
+        schema: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            brand: { type: "string" },
+            category: { type: "string" },
+            shortDescription: { type: "string" },
+            vehicleCompatibilityGuess: { type: "string" },
+            vehicleConfidence: { type: "string", enum: ["low", "medium", "high"] },
+          },
+          required: ["title", "brand", "category", "shortDescription", "vehicleCompatibilityGuess", "vehicleConfidence"],
+          additionalProperties: false,
         },
       },
-    });
+    },
+  });
 
-    const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
-    if (!textBlock) {
-      return res.status(502).json({ error: "The AI didn't return a usable suggestion. Try again." });
-    }
+  const textBlock = response.content.find((b): b is Anthropic.TextBlock => b.type === "text");
+  if (!textBlock) throw new Error("The AI didn't return a usable suggestion. Try again.");
 
-    const result = aiSuggestionSchema.safeParse(JSON.parse(textBlock.text));
-    if (!result.success) {
-      return res.status(502).json({ error: "The AI's response didn't match the expected format. Try again." });
-    }
-    res.json(result.data);
+  const result = aiSuggestionSchema.safeParse(JSON.parse(textBlock.text));
+  if (!result.success) throw new Error("The AI's response didn't match the expected format. Try again.");
+  return result.data;
+}
+
+// Admin-only and not free (a few thousand tokens per call on Claude Haiku
+// 4.5 -- roughly half a cent), so it's opt-in per product rather than
+// running automatically on upload.
+router.post("/analyze-photos", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  const parsed = analyzeSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  try {
+    res.json(await analyzeProductPhotos(parsed.data.imageUrls));
   } catch (err: any) {
     res.status(502).json({ error: err.message || "AI photo analysis failed." });
+  }
+});
+
+// Auto-completes a still-unfinished staff-PIN draft (title starting with
+// "[Draft] ") using the same photo analysis as the manual "Analyze photos"
+// button, applying its top suggestion directly rather than waiting for an
+// admin to click "Use this" per field -- per the house rule that AI never
+// overwrites anything an admin has already touched, this ONLY ever acts on
+// products still carrying the untouched "[Draft] " marker (any admin save,
+// even one that doesn't change the title, strips that marker -- see PUT
+// /:id below), and marks its own output with "[AI] " instead of leaving it
+// looking like an admin-authored title, so it's obvious at a glance that it
+// still wants a human review.
+async function autoCompleteDraftProduct(productId: string) {
+  const product = await prisma.product.findUnique({
+    where: { id: productId },
+    include: { images: { orderBy: { sortOrder: "asc" }, take: 4 } },
+  });
+  if (!product || !product.title.startsWith(DRAFT_PREFIX)) return null;
+  if (product.images.length === 0) return null; // nothing to analyze yet
+
+  const suggestion = await analyzeProductPhotos(product.images.map((img) => img.url));
+
+  const [matchedBrand, matchedCategory] = await Promise.all([
+    prisma.brand.findFirst({ where: { name: { equals: suggestion.brand, mode: "insensitive" } } }),
+    prisma.category.findFirst({ where: { name: { equals: suggestion.category, mode: "insensitive" } } }),
+  ]);
+
+  const updated = await prisma.product.update({
+    where: { id: productId },
+    data: {
+      title: AI_PREFIX + suggestion.title,
+      shortDescription: suggestion.shortDescription,
+      // Only reassign brand/category when the AI's suggestion resolves to an
+      // existing catalog entry -- never silently create a new one, matching
+      // the manual "Use this" button being disabled for unmatched names.
+      ...(matchedBrand ? { brandId: matchedBrand.id } : {}),
+      ...(matchedCategory ? { categoryId: matchedCategory.id } : {}),
+    },
+  });
+  // Now that there's a real title/description, it's worth translating too.
+  translateProductFields(productId).catch((err) => console.error("Product translation failed:", err.message));
+  return updated;
+}
+
+router.post("/:id/auto-complete", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, res) => {
+  try {
+    const updated = await autoCompleteDraftProduct(req.params.id);
+    if (!updated) return res.json({ skipped: true, reason: "Not a pending draft (already handled, or has no photos yet)." });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(502).json({ error: err.message || "Auto-complete failed." });
   }
 });
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma";
 import { buildProductSearchAnd } from "../lib/search";
 import { requireAuth, requireRole, type AuthedRequest } from "../middleware/auth";
+import { DRAFT_PREFIX } from "./products";
 
 const router = Router();
 router.use(requireAuth);
@@ -229,6 +230,41 @@ router.get("/products/all-images", adminOnly, async (_req, res) => {
         orderBy: { sortOrder: "asc" },
         select: { url: true, originalUrl: true, altText: true, sortOrder: true },
       },
+    },
+  });
+  res.json(products);
+});
+
+// Feeds the bulk translation tool: every product's title/description plus
+// whatever translation state already exists, so the tool can derive
+// client-side which ones still need translating and skip the rest on a
+// re-run (same "pending" pattern as all-images above).
+// Feeds the bulk draft-completion tool: every product still carrying the
+// untouched "[Draft] " marker, with its photos so the tool can drive the
+// same AI analysis the automatic on-create hook uses.
+router.get("/products/all-drafts", adminOnly, async (_req, res) => {
+  const products = await prisma.product.findMany({
+    where: { title: { startsWith: DRAFT_PREFIX } },
+    select: {
+      id: true,
+      title: true,
+      images: { orderBy: { sortOrder: "asc" }, select: { url: true } },
+    },
+  });
+  res.json(products);
+});
+
+router.get("/products/all-text", adminOnly, async (_req, res) => {
+  const products = await prisma.product.findMany({
+    select: {
+      id: true,
+      title: true,
+      shortDescription: true,
+      description: true,
+      contentLanguage: true,
+      titleTranslated: true,
+      shortDescriptionTranslated: true,
+      descriptionTranslated: true,
     },
   });
   res.json(products);
