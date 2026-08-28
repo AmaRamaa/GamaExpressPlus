@@ -205,8 +205,13 @@ router.get("/", async (req, res) => {
 });
 
 router.get("/:slug", async (req, res) => {
-  const product = await prisma.product.findUnique({
-    where: { slug: req.params.slug },
+  // findFirst + insensitive rather than findUnique -- slug is unique, but not
+  // every row got its slug through slugify() (case-sensitive equality on a
+  // handful of legacy/imported rows meant an otherwise-correct lowercase URL
+  // 404'd against a slug stored as e.g. "G-311"). This tolerates that instead
+  // of requiring existing data to be normalized first.
+  const product = await prisma.product.findFirst({
+    where: { slug: { equals: req.params.slug, mode: "insensitive" } },
     include: {
       images: { orderBy: { sortOrder: "asc" } },
       brand: true,
