@@ -306,7 +306,7 @@ router.post("/products/import", adminOnly, async (req, res) => {
   const rows = Array.isArray(req.body?.rows) ? req.body.rows : [];
   if (rows.length === 0) return res.status(400).json({ error: "No rows to import" });
 
-  const results: { row: number; sku?: string; status: "created" | "error"; error?: string }[] = [];
+  const results: { row: number; sku?: string; status: "created" | "error"; error?: string; warning?: string }[] = [];
   const validRows: any[] = [];
 
   const existingSkus = new Set(
@@ -323,6 +323,12 @@ router.post("/products/import", adminOnly, async (req, res) => {
     const categoryName = String(row.category || "").trim();
     const priceEur = Number(row.priceEur);
     const stockQuantity = row.stockQuantity !== undefined ? Number(row.stockQuantity) : 0;
+    const manufacturerName = String(row.manufacturer || "").trim();
+    const locationCompany = String(row.locationCompany || "").trim();
+    const vehicleMake = String(row.vehicleMake || "").trim();
+    const vehicleModel = String(row.vehicleModel || "").trim();
+    const vehicleYearRaw = String(row.vehicleYear || "").trim();
+    const vehicleYear = vehicleYearRaw ? Number(vehicleYearRaw) : undefined;
 
     const rowErrors: string[] = [];
     if (!sku) rowErrors.push("sku is required");
@@ -332,8 +338,21 @@ router.post("/products/import", adminOnly, async (req, res) => {
     if (!categoryName) rowErrors.push("category is required");
     if (!Number.isFinite(priceEur) || priceEur < 0) rowErrors.push("priceEur must be a non-negative number");
     if (!Number.isFinite(stockQuantity) || stockQuantity < 0) rowErrors.push("stockQuantity must be a non-negative number");
+    let discountPriceEur: number | undefined;
+    if (row.discountPriceEur !== undefined && String(row.discountPriceEur).trim() !== "") {
+      discountPriceEur = Number(row.discountPriceEur);
+      if (!Number.isFinite(discountPriceEur) || discountPriceEur < 0) rowErrors.push("discountPriceEur must be a non-negative number");
+    }
     if (sku && existingSkus.has(sku)) rowErrors.push(`sku "${sku}" already exists`);
     if (sku && seenSkus.has(sku)) rowErrors.push(`sku "${sku}" is duplicated in this file`);
+    // Vehicle fitment is opt-in per row, but if any of the three columns is
+    // filled in they all have to be -- a make with no model/year is not
+    // resolvable to a specific generation.
+    if ((vehicleMake || vehicleModel || vehicleYearRaw) && !(vehicleMake && vehicleModel && vehicleYearRaw)) {
+      rowErrors.push("vehicleMake, vehicleModel and vehicleYear must all be filled in together (or all left blank)");
+    } else if (vehicleYearRaw && (!Number.isInteger(vehicleYear) || (vehicleYear as number) < 1900)) {
+      rowErrors.push("vehicleYear must be a whole year, e.g. 2018");
+    }
 
     if (rowErrors.length > 0) {
       results.push({ row: rowNum, sku: sku || undefined, status: "error", error: rowErrors.join("; ") });
@@ -349,9 +368,20 @@ router.post("/products/import", adminOnly, async (req, res) => {
       partNumber,
       brandName,
       categoryName,
+      manufacturerName,
       priceEur,
+      discountPriceEur,
       stockQuantity,
       shortDescription: row.shortDescription ? String(row.shortDescription) : undefined,
+      description: row.description ? String(row.description) : undefined,
+      manufacturerNumber: row.manufacturerNumber ? String(row.manufacturerNumber).trim() : undefined,
+      barcode: row.barcode ? String(row.barcode).trim() : undefined,
+      locationCompany: locationCompany || undefined,
+      isFeatured: String(row.isFeatured || "").trim().toLowerCase() === "true",
+      isActive: String(row.isActive ?? "true").trim().toLowerCase() !== "false",
+      vehicleMake: vehicleMake || undefined,
+      vehicleModel: vehicleModel || undefined,
+      vehicleYear,
       oemNumbers: row.oemNumbers
         ? String(row.oemNumbers).split(",").map((s: string) => s.trim()).filter(Boolean)
         : [],
@@ -362,6 +392,10 @@ router.post("/products/import", adminOnly, async (req, res) => {
     await prisma.$transaction(async (tx) => {
       const brandCache = new Map<string, string>();
       const categoryCache = new Map<string, string>();
+      const manufacturerCache = new Map<string, string>();
+      // key: "make|model|year" (lowercased) -> engine ids for that generation,
+      // or null when no matching make/model/generation was found.
+      const generationEngineCache = new Map<string, string[] | null>();
 
       for (const row of validRows) {
         try {
@@ -389,25 +423,105 @@ router.post("/products/import", adminOnly, async (req, res) => {
             categoryCache.set(row.categoryName, categoryId);
           }
 
+          let manufacturerId: string | undefined;
+          if (row.manufacturerName) {
+            manufacturerId = manufacturerCache.get(row.manufacturerName);
+            if (!manufacturerId) {
+              const slug = row.manufacturerName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+              const manufacturer = await tx.manufacturer.upsert({
+                where: { name: row.manufacturerName },
+                update: {},
+                create: { name: row.manufacturerName, slug },
+              });
+              manufacturerId = manufacturer.id;
+              manufacturerCache.set(row.manufacturerName, manufacturerId);
+            }
+          }
+
           const stockStatus = row.stockQuantity === 0 ? "OUT_OF_STOCK" : row.stockQuantity <= 5 ? "LOW_STOCK" : "IN_STOCK";
 
-          await tx.product.create({
+          const product = await tx.product.create({
             data: {
               sku: row.sku,
               slug: row.slug,
               title: row.title,
               partNumber: row.partNumber,
+              manufacturerNumber: row.manufacturerNumber,
+              barcode: row.barcode,
               shortDescription: row.shortDescription,
+              description: row.description,
               oemNumbers: row.oemNumbers,
               priceEur: row.priceEur,
+              discountPriceEur: row.discountPriceEur,
               stockQuantity: row.stockQuantity,
               stockStatus,
+              isFeatured: row.isFeatured,
+              isActive: row.isActive,
+              ...(row.locationCompany ? { locationCompany: row.locationCompany } : {}),
               brandId,
               categoryId,
+              manufacturerId,
             },
           });
 
-          results.push({ row: row.rowNum, sku: row.sku, status: "created" });
+          // Vehicle fitment (vehicleMake/vehicleModel/vehicleYear) is matched
+          // against EXISTING make/model/generation data only -- this importer
+          // never invents new vehicle records, since that hierarchy's year
+          // ranges need to be curated correctly (see /admin/vehicles). No
+          // match just means the product is created without fitment; it's
+          // reported back as a warning, not a row failure.
+          let warning: string | undefined;
+          if (row.vehicleMake && row.vehicleModel && row.vehicleYear !== undefined) {
+            const key = `${row.vehicleMake.toLowerCase()}|${row.vehicleModel.toLowerCase()}|${row.vehicleYear}`;
+            let engineIds = generationEngineCache.get(key);
+            if (engineIds === undefined) {
+              const generation = await tx.vehicleGeneration.findFirst({
+                where: {
+                  yearFrom: { lte: row.vehicleYear },
+                  OR: [{ yearTo: null }, { yearTo: { gte: row.vehicleYear } }],
+                  model: {
+                    name: { equals: row.vehicleModel, mode: "insensitive" },
+                    make: { name: { equals: row.vehicleMake, mode: "insensitive" } },
+                  },
+                },
+                include: { engines: true },
+              });
+              if (!generation) {
+                engineIds = null;
+              } else if (generation.engines.length > 0) {
+                engineIds = generation.engines.map((e) => e.id);
+              } else {
+                // Every generation needs at least one engine row to hang
+                // compatibility off of -- mirrors the same placeholder
+                // fallback GET /vehicles/generations/:id/engines uses when
+                // seeded data has no real engine rows for it.
+                const placeholder = await tx.vehicleEngine.create({
+                  data: {
+                    generationId: generation.id,
+                    engineCode: "ALL",
+                    displacementL: 0,
+                    fuelType: "PETROL",
+                    horsePowerHp: 0,
+                    transmission: "MANUAL",
+                    yearFrom: generation.yearFrom,
+                    yearTo: generation.yearTo,
+                  },
+                });
+                engineIds = [placeholder.id];
+              }
+              generationEngineCache.set(key, engineIds);
+            }
+
+            if (engineIds) {
+              await tx.productCompatibility.createMany({
+                data: engineIds.map((engineId) => ({ productId: product.id, engineId })),
+              });
+            } else {
+              warning = `created, but no vehicle match for "${row.vehicleMake} ${row.vehicleModel} ${row.vehicleYear}" -- add fitment manually`;
+            }
+          }
+
+          results.push({ row: row.rowNum, sku: row.sku, status: "created", warning });
         } catch (err: any) {
           results.push({ row: row.rowNum, sku: row.sku, status: "error", error: err.message });
         }

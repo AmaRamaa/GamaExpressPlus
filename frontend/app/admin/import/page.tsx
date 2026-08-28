@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ChangeEvent } from "react";
+import Link from "next/link";
 import Papa from "papaparse";
 // xlsx has an unpatched prototype-pollution/ReDoS advisory with no fixed npm
 // release. Risk is accepted here: this page is ADMIN-only (route-guarded)
@@ -22,7 +23,18 @@ const TEMPLATE_COLUMNS = [
   "priceEur",
   "stockQuantity",
   "shortDescription",
+  "description",
   "oemNumbers",
+  "discountPriceEur",
+  "manufacturer",
+  "manufacturerNumber",
+  "barcode",
+  "locationCompany",
+  "isFeatured",
+  "isActive",
+  "vehicleMake",
+  "vehicleModel",
+  "vehicleYear",
 ];
 
 interface RawRow {
@@ -37,7 +49,7 @@ interface PreviewRow {
 interface ImportResult {
   created: number;
   failed: number;
-  results: { row: number; sku?: string; status: "created" | "error"; error?: string }[];
+  results: { row: number; sku?: string; status: "created" | "error"; error?: string; warning?: string }[];
 }
 
 function validateRow(row: RawRow): string[] {
@@ -47,9 +59,21 @@ function validateRow(row: RawRow): string[] {
   }
   const price = Number(row.priceEur);
   if (row.priceEur && (!Number.isFinite(price) || price < 0)) errors.push("priceEur must be a non-negative number");
+  if (row.discountPriceEur) {
+    const discount = Number(row.discountPriceEur);
+    if (!Number.isFinite(discount) || discount < 0) errors.push("discountPriceEur must be a non-negative number");
+  }
   if (row.stockQuantity) {
     const stock = Number(row.stockQuantity);
     if (!Number.isFinite(stock) || stock < 0) errors.push("stockQuantity must be a non-negative number");
+  }
+  const vMake = String(row.vehicleMake ?? "").trim();
+  const vModel = String(row.vehicleModel ?? "").trim();
+  const vYear = String(row.vehicleYear ?? "").trim();
+  if ((vMake || vModel || vYear) && !(vMake && vModel && vYear)) {
+    errors.push("vehicleMake, vehicleModel and vehicleYear must all be filled in together (or all left blank)");
+  } else if (vYear && (!Number.isInteger(Number(vYear)) || Number(vYear) < 1900)) {
+    errors.push("vehicleYear must be a whole year, e.g. 2018");
   }
   return errors;
 }
@@ -116,7 +140,18 @@ export default function AdminImportPage() {
         priceEur: r.data.priceEur,
         stockQuantity: r.data.stockQuantity || "0",
         shortDescription: r.data.shortDescription,
+        description: r.data.description,
         oemNumbers: r.data.oemNumbers,
+        discountPriceEur: r.data.discountPriceEur,
+        manufacturer: r.data.manufacturer,
+        manufacturerNumber: r.data.manufacturerNumber,
+        barcode: r.data.barcode,
+        locationCompany: r.data.locationCompany,
+        isFeatured: r.data.isFeatured,
+        isActive: r.data.isActive,
+        vehicleMake: r.data.vehicleMake,
+        vehicleModel: r.data.vehicleModel,
+        vehicleYear: r.data.vehicleYear,
       }));
       const res = await api.post<ImportResult>("/admin/products/import", { rows: payload }, token);
       setResult(res);
@@ -153,8 +188,9 @@ export default function AdminImportPage() {
           </button>
         </div>
         <p className="mb-4 text-xs text-ink-soft">
-          Optional columns: stockQuantity, shortDescription, oemNumbers (comma-separated). Brands and categories that
-          don&apos;t exist yet are created automatically.
+          Optional columns: stockQuantity, shortDescription, description, oemNumbers (comma-separated),
+          discountPriceEur, manufacturer, manufacturerNumber, barcode, locationCompany, isFeatured, isActive,
+          vehicleMake, vehicleModel, vehicleYear.
         </p>
 
         <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 py-8 text-center hover:border-brand-red">
@@ -163,6 +199,36 @@ export default function AdminImportPage() {
           <input type="file" accept=".csv,.xlsx,.xls" onChange={handleFile} className="hidden" />
         </label>
         {parseError && <p className="mt-3 rounded-lg bg-red-50 p-3 text-sm text-red-600">{parseError}</p>}
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <h2 className="mb-3 font-display text-sm font-semibold text-ink">How linking works</h2>
+        <ul className="space-y-2.5 text-xs leading-relaxed text-ink-soft">
+          <li>
+            <strong className="text-ink">brand</strong>, <strong className="text-ink">category</strong> and{" "}
+            <strong className="text-ink">manufacturer</strong> are matched by exact name (case-sensitive) against
+            existing ones — a name that doesn&apos;t match anything gets created automatically. Keep spelling and
+            capitalization consistent across rows, or you&apos;ll end up with duplicates (e.g. &quot;Audi&quot; and
+            &quot;audi&quot; become two different brands). Manage the canonical lists at{" "}
+            <Link href="/admin/categories" className="text-brand-red hover:underline">Categories</Link>,{" "}
+            <Link href="/admin/brands" className="text-brand-red hover:underline">Brands</Link> and{" "}
+            <Link href="/admin/manufacturers" className="text-brand-red hover:underline">Manufacturers</Link>.
+          </li>
+          <li>
+            <strong className="text-ink">vehicleMake / vehicleModel / vehicleYear</strong> link the part to a
+            vehicle generation for fitment search — but unlike brand/category, these are <em>matched only</em>,
+            never created. The make, model and a generation whose year range covers vehicleYear all have to
+            already exist. Fitment in this shop is tracked per generation, not per exact trim/engine, so one
+            matching row links the part to every engine in that generation. If a row&apos;s make/model/year
+            can&apos;t be matched, the product still gets created — you&apos;ll see a warning in the results below,
+            and can add fitment by hand from the product&apos;s edit page. To add a make/model/generation that
+            doesn&apos;t exist yet, use <Link href="/admin/vehicles" className="text-brand-red hover:underline">Vehicles</Link> first, then re-import (or fix up that one product afterward).
+          </li>
+          <li>
+            <strong className="text-ink">locationCompany</strong> defaults to &quot;Gama Express SH.P.K&quot; when
+            left blank — only set it when a part is actually held/sold by a different partner company.
+          </li>
+        </ul>
       </div>
 
       {rows.length > 0 && !result && (
@@ -228,9 +294,16 @@ export default function AdminImportPage() {
             <span className="text-red-600">{result.failed} failed</span>
           </div>
           {result.failed > 0 && (
-            <ul className="space-y-1 text-xs text-ink-soft">
+            <ul className="space-y-1 text-xs text-red-600">
               {result.results.filter((r) => r.status === "error").map((r) => (
                 <li key={r.row}>Row {r.row} ({r.sku || "no sku"}): {r.error}</li>
+              ))}
+            </ul>
+          )}
+          {result.results.some((r) => r.warning) && (
+            <ul className="mt-2 space-y-1 text-xs text-amber-600">
+              {result.results.filter((r) => r.warning).map((r) => (
+                <li key={r.row}>Row {r.row} ({r.sku}): {r.warning}</li>
               ))}
             </ul>
           )}
