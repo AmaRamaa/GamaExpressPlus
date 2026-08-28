@@ -14,6 +14,7 @@ interface Submission {
   submitterPhone: string | null;
   title: string;
   description: string | null;
+  locationCompany: string | null;
   images: string[];
   status: "PENDING" | "REJECTED" | "APPROVED" | "PROMOTED";
   aiIsCarPart: boolean | null;
@@ -115,6 +116,7 @@ export default function AdminSubmissionsPage() {
                 {new Date(s.createdAt).toLocaleDateString()}
               </p>
               {s.description && <p className="mt-1.5 text-sm text-ink-soft">{s.description}</p>}
+              {s.locationCompany && <p className="mt-1 text-xs text-ink-soft">Company: {s.locationCompany}</p>}
               {s.aiReasoning && (
                 <p className="mt-1.5 text-xs italic text-ink-soft">
                   AI: {s.aiIsCarPart ? "looks like a car part" : "doesn't look like a car part"} — {s.aiReasoning}

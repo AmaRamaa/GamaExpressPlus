@@ -15,11 +15,13 @@ const upload = multer({
   limits: { fileSize: 8 * 1024 * 1024, files: 4 },
 });
 
-// Public, unauthenticated, and costs a Claude call per submission -- keep it
-// tight so this can't be used to spam the review queue or run up API spend.
+// Public, unauthenticated, and costs a Claude call per submission -- capped
+// well above a single legitimate large batch (the /sell-part page lets one
+// visitor submit many parts in one sitting, one request per part) so it
+// still bounds abuse without throttling a real seller mid-batch.
 const submitLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: "Too many submissions from this connection. Please try again later." },
@@ -31,6 +33,7 @@ const submitSchema = z.object({
   submitterPhone: z.string().optional(),
   title: z.string().min(1),
   description: z.string().optional(),
+  locationCompany: z.string().optional(),
 });
 
 // Screens a customer-submitted listing before it ever reaches an admin: is
@@ -128,7 +131,13 @@ router.post("/", submitLimiter, upload.array("images", 4), async (req, res) => {
   }
 
   const submission = await prisma.productSubmission.create({
-    data: { ...parsed.data, images: imageUrls },
+    data: {
+      ...parsed.data,
+      // Multipart fields arrive as "" rather than absent when left blank --
+      // store that as null so it reads as "no override" downstream.
+      locationCompany: parsed.data.locationCompany?.trim() || null,
+      images: imageUrls,
+    },
   });
 
   try {

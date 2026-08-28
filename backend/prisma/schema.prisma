@@ -632,6 +632,10 @@ model ProductSubmission {
   submitterPhone    String?
   title             String
   description       String?          @db.Text
+  // Which company/location currently holds the part, if the seller says --
+  // optional; left blank it just means "use the normal default" (Gama
+  // Express SH.P.K, same as Product.locationCompany) once promoted.
+  locationCompany   String?
   images            String[]
   status            SubmissionStatus @default(PENDING)
   aiIsCarPart       Boolean?

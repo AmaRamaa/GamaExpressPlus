@@ -11,6 +11,7 @@ interface Submission {
   title: string;
   description: string | null;
   images: string[];
+  locationCompany: string | null;
 }
 
 function NewProductPageContent() {
@@ -31,6 +32,7 @@ function NewProductPageContent() {
           title: s.title,
           shortDescription: s.description || "",
           images: s.images.map((url) => ({ url, altText: "" })),
+          ...(s.locationCompany ? { locationCompany: s.locationCompany } : {}),
         });
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load submission"))
