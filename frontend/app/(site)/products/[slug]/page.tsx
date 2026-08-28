@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, Truck, Minus, Plus, Pencil, X } from "lucide-react";
+import { Heart, ShoppingCart, Truck, Store, Minus, Plus, Pencil, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { mapProduct, localizeProductText } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
@@ -85,6 +85,7 @@ export default function ProductDetailPage() {
         manufacturerId: p.manufacturerId || "",
         partNumber: p.partNumber,
         manufacturerNumber: p.manufacturerNumber || "",
+        locationCompany: p.locationCompany || "Gama Express SH.P.K",
         oemNumbers: (p.oemNumbers || []).join(", "),
         priceEur: String(p.priceEur),
         discountPriceEur: p.discountPriceEur != null ? String(p.discountPriceEur) : "",
@@ -268,6 +269,9 @@ export default function ProductDetailPage() {
           <div className="grid grid-cols-1 gap-3 text-sm">
             <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3">
               <Truck size={16} className="text-brand-red" /> {t.common.deliveryEstimate}
+            </div>
+            <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3">
+              <Store size={16} className="text-brand-red" /> {t.common.soldByLabel}: {product.locationCompany}
             </div>
           </div>
         </div>

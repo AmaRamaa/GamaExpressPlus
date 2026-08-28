@@ -88,6 +88,7 @@ export interface Product {
   isFeatured?: boolean;
   imageUrl?: string;
   imageUrls?: string[];
+  locationCompany: string;
 }
 
 export interface CartLine {

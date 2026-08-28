@@ -321,6 +321,10 @@ model Product {
   isActive      Boolean  @default(true)
   isPerformancePart Boolean @default(false)
 
+  // Which company physically holds/sells this part -- defaults to Gama
+  // Express itself, but lets admins flag parts held by a partner company.
+  locationCompany String @default("Gama Express SH.P.K")
+
   images        ProductImage[]
   compatibility ProductCompatibility[]
   reviews       Review[]

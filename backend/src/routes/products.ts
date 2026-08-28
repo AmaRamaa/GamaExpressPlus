@@ -46,6 +46,7 @@ const productWriteSchema = z.object({
   isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
   isPerformancePart: z.boolean().optional(),
+  locationCompany: z.string().min(1).optional(),
   images: z
     .object({
       create: z

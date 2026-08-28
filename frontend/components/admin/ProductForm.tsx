@@ -51,6 +51,7 @@ export interface ProductFormValues {
   stockQuantity: string;
   isFeatured: boolean;
   isActive: boolean;
+  locationCompany: string;
   images: ImageRow[];
   compatibility: CompatibilityRow[];
 }
@@ -72,6 +73,7 @@ const EMPTY: ProductFormValues = {
   stockQuantity: "0",
   isFeatured: false,
   isActive: true,
+  locationCompany: "Gama Express SH.P.K",
   images: [],
   compatibility: [],
 };
@@ -489,6 +491,7 @@ export function ProductForm({
       manufacturerId: values.manufacturerId || null,
       partNumber: values.partNumber.trim() || undefined,
       manufacturerNumber: values.manufacturerNumber.trim() || undefined,
+      locationCompany: values.locationCompany.trim() || undefined,
       oemNumbers: values.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean),
       priceEur: values.priceEur.trim() ? Number(values.priceEur) : undefined,
       discountPriceEur: values.discountPriceEur.trim() ? Number(values.discountPriceEur) : undefined,
@@ -714,6 +717,10 @@ export function ProductForm({
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className={labelClass}>Sold by / location</label>
+            <input className={inputClass} value={values.locationCompany} onChange={(e) => set("locationCompany", e.target.value)} placeholder="Gama Express SH.P.K" />
           </div>
         </div>
       </div>

@@ -53,6 +53,7 @@ const dict = {
       formSending: "Duke dërguar…",
       formErrorGeneric: "Diçka shkoi keq. Provo përsëri ose na telefono.",
       deliveryEstimate: "Dërgesë brenda 1–3 ditësh pune",
+      soldByLabel: "Shitet nga",
     },
     home: {
       badge: "Gama Express · Katalogu i pjesëve eksterne të Kosovës",
@@ -486,6 +487,7 @@ const dict = {
       formSending: "Sending…",
       formErrorGeneric: "Something went wrong. Please try again or call us.",
       deliveryEstimate: "Delivery in 1–3 business days",
+      soldByLabel: "Sold by",
     },
     home: {
       badge: "Gama Express · Kosovo's exterior parts catalog",

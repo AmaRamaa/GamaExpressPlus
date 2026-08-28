@@ -29,6 +29,7 @@ export default function EditProductPage() {
           manufacturerId: p.manufacturerId || "",
           partNumber: p.partNumber,
           manufacturerNumber: p.manufacturerNumber || "",
+          locationCompany: p.locationCompany || "Gama Express SH.P.K",
           oemNumbers: (p.oemNumbers || []).join(", "),
           priceEur: String(p.priceEur),
           discountPriceEur: p.discountPriceEur != null ? String(p.discountPriceEur) : "",

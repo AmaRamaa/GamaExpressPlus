@@ -38,6 +38,7 @@ export function mapProduct(raw: any): Product {
     isFeatured: raw.isFeatured,
     imageUrl: raw.images?.[0]?.url || undefined,
     imageUrls: (raw.images || []).map((img: any) => img.url).filter(Boolean),
+    locationCompany: raw.locationCompany || "Gama Express SH.P.K",
   };
 }
 
