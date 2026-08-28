@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Heart, ShoppingCart, Truck, ShieldCheck, Minus, Plus, Pencil, X } from "lucide-react";
+import { Heart, ShoppingCart, Truck, Minus, Plus, Pencil, X } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { mapProduct, localizeProductText } from "@/lib/adapters";
 import { useStore } from "@/lib/store";
@@ -22,7 +22,7 @@ export default function ProductDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
-  const { locale } = useT();
+  const { t, locale } = useT();
 
   const [product, setProduct] = useState<Product | null>(null);
   const isWishlisted = useStore((s) => s.wishlist.includes(product?.id ?? ""));
@@ -253,11 +253,11 @@ export default function ProductDetailPage() {
                 disabled={product.stockStatus === "OUT_OF_STOCK"}
                 className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-brand-red py-2.5 text-sm font-semibold text-white hover:bg-brand-red-dark disabled:bg-surface-border disabled:text-ink-soft"
               >
-                <ShoppingCart size={16} /> Add to cart
+                <ShoppingCart size={16} /> {t.common.addToCart}
               </button>
               <button
                 onClick={() => toggleWishlist(product.id)}
-                aria-label="Save to favorites"
+                aria-label={isWishlisted ? t.common.removeFromFavorites : t.common.saveToFavorites}
                 className="rounded-lg border border-surface-border p-2.5 hover:border-brand-red"
               >
                 <Heart size={18} className={isWishlisted ? "fill-brand-red text-brand-red" : "text-ink-soft"} />
@@ -265,12 +265,9 @@ export default function ProductDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 text-sm">
+          <div className="grid grid-cols-1 gap-3 text-sm">
             <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3">
-              <Truck size={16} className="text-brand-red" /> Delivery in 1–3 business days
-            </div>
-            <div className="flex items-center gap-2 rounded-lg bg-surface-muted p-3">
-              <ShieldCheck size={16} className="text-brand-red" /> 24-month warranty
+              <Truck size={16} className="text-brand-red" /> {t.common.deliveryEstimate}
             </div>
           </div>
         </div>
