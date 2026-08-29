@@ -1,9 +1,10 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { SlidersHorizontal, Car, LayoutGrid, List } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
+import Pagination from "@/components/Pagination";
 import VehicleFinder from "@/components/VehicleFinder";
 import { api } from "@/lib/api";
 import { mapProduct, mapCategory } from "@/lib/adapters";
@@ -19,6 +20,8 @@ interface ProductListResponse {
 
 function ProductsPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const q = searchParams.get("q") || "";
   const categorySlug = searchParams.get("category") || "";
   const brandSlug = searchParams.get("brand") || "";
@@ -36,8 +39,20 @@ function ProductsPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [page, setPage] = useState(1);
+  // Lives in the URL (not local state) so that navigating away (e.g. into a
+  // product) and hitting Back returns to the page the user was on, instead
+  // of always remounting back at page 1.
+  const page = Number(searchParams.get("page")) || 1;
   const [loading, setLoading] = useState(true);
+
+  function updateParams(next: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }
 
   useEffect(() => {
     api
@@ -74,9 +89,18 @@ function ProductsPageContent() {
   // A filter/search/sort change invalidates whatever page you were on (it
   // might not even exist in the new result set), so jump back to page 1
   // whenever any of them change. Kept separate from the fetch effect below
-  // so that effect can react to `page` changes on their own.
+  // so that effect can react to `page` changes on their own. Skipped on the
+  // very first run -- that run just reflects the page's initial load (e.g. a
+  // restored ?page=N deep link), not an actual filter change, and resetting
+  // then would immediately wipe the page we're trying to restore.
+  const isFirstFilterRun = useRef(true);
   useEffect(() => {
-    setPage(1);
+    if (isFirstFilterRun.current) {
+      isFirstFilterRun.current = false;
+      return;
+    }
+    updateParams({ page: "1" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice]);
 
   useEffect(() => {
@@ -108,7 +132,7 @@ function ProductsPageContent() {
   }, [q, generationId, modelId, makeId, selectedCategory, brandSlug, featured, sort, maxPrice, page]);
 
   function goToPage(next: number) {
-    setPage(next);
+    updateParams({ page: String(next) });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -254,25 +278,7 @@ function ProductsPageContent() {
             </div>
           )}
 
-          {!loading && totalPages > 1 && (
-            <div className="mt-8 flex items-center justify-center gap-2">
-              <button
-                disabled={page <= 1}
-                onClick={() => goToPage(page - 1)}
-                className="rounded-lg border border-surface-border px-3 py-1.5 text-sm text-ink disabled:opacity-40"
-              >
-                Prev
-              </button>
-              <span className="text-sm text-ink-soft">Page {page} of {totalPages}</span>
-              <button
-                disabled={page >= totalPages}
-                onClick={() => goToPage(page + 1)}
-                className="rounded-lg border border-surface-border px-3 py-1.5 text-sm text-ink disabled:opacity-40"
-              >
-                Next
-              </button>
-            </div>
-          )}
+          {!loading && <Pagination page={page} totalPages={totalPages} onPageChange={goToPage} />}
         </div>
       </div>
     </div>

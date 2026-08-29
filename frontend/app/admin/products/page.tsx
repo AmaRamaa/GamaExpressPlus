@@ -6,6 +6,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages, StarOff, EyeOff } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
+import Pagination from "@/components/Pagination";
 
 interface ProductRow {
   id: string;
@@ -488,16 +489,12 @@ function AdminProductsPageContent() {
         </table>
       </div>
 
-      {data && data.totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button disabled={page <= 1} onClick={() => updateParams({ page: String(page - 1) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Prev
-          </button>
-          <span className="text-sm text-ink-soft">Page {data.page} of {data.totalPages}</span>
-          <button disabled={page >= data.totalPages} onClick={() => updateParams({ page: String(page + 1) })} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm disabled:opacity-40">
-            Next
-          </button>
-        </div>
+      {data && (
+        <Pagination
+          page={page}
+          totalPages={data.totalPages}
+          onPageChange={(next) => updateParams({ page: String(next) })}
+        />
       )}
     </div>
   );
