@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import sharp from "sharp";
 import { StorageClient } from "@supabase/storage-js";
 import { requireAuth, requireRole } from "../middleware/auth";
 
@@ -27,6 +28,16 @@ export const storage = storageConfigured
   : null;
 
 export const BUCKET = "product-images";
+
+// Uploaded photos come straight off admins' phones/cameras -- easily 4-10MB
+// and several thousand pixels wide -- but are only ever displayed as card
+// thumbnails or a single product-detail hero, never anywhere near that size.
+// Downscaling once here (instead of shipping the original to every visitor)
+// is what makes product listings fast: a 300px grid card has no business
+// pulling down a 4000px photo. WebP keeps transparency (background-removed
+// photos are PNGs) at a fraction of the file size of the source format.
+const MAX_DIMENSION = 1600;
+const WEBP_QUALITY = 82;
 
 if (!storageConfigured) {
   console.warn(
@@ -62,13 +73,24 @@ router.post(
       return res.status(502).json({ error: "Photo upload failed" });
     }
 
-    const sanitizedName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_");
-    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${sanitizedName}`;
+    const sanitizedBaseName = req.file.originalname.replace(/[^a-zA-Z0-9.\-_]/g, "_").replace(/\.[^.]+$/, "");
+    const path = `${Date.now()}-${Math.random().toString(36).slice(2)}-${sanitizedBaseName}.webp`;
+
+    let optimized: Buffer;
+    try {
+      optimized = await sharp(req.file.buffer)
+        .resize({ width: MAX_DIMENSION, height: MAX_DIMENSION, fit: "inside", withoutEnlargement: true })
+        .webp({ quality: WEBP_QUALITY })
+        .toBuffer();
+    } catch (err) {
+      console.error("[uploads] Failed to process image:", err);
+      return res.status(400).json({ error: "That file doesn't look like a valid image" });
+    }
 
     try {
       const { error: uploadError } = await storage
         .from(BUCKET)
-        .upload(path, req.file.buffer, { contentType: req.file.mimetype });
+        .upload(path, optimized, { contentType: "image/webp" });
 
       if (uploadError) {
         console.error("[uploads] Supabase upload error:", uploadError.message);

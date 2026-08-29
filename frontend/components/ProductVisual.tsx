@@ -28,6 +28,7 @@ export default function ProductVisual({
   activeIndex = 0,
   onIndexChange,
   magnify = false,
+  priority = false,
 }: {
   categorySlug: string;
   imageUrl?: string;
@@ -45,6 +46,12 @@ export default function ProductVisual({
   // detail instead). Opt-in per usage so tiny card/cart thumbnails don't
   // get a magnifier that makes no sense at that size.
   magnify?: boolean;
+  // The above-the-fold hero shot (product detail page) shouldn't be lazy --
+  // it's usually the page's LCP element, so deferring it makes the page feel
+  // slower to load, not faster. Every other usage (grid/list cards, hover
+  // previews, thumbnail strips) is off-screen more often than not and should
+  // stay lazy so a page of 16 products doesn't fire 16 full downloads at once.
+  priority?: boolean;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
@@ -89,7 +96,14 @@ export default function ProductVisual({
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setLensPos(null)}
         >
-          <img src={imageUrl} alt="" className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`} />
+          <img
+            src={imageUrl}
+            alt=""
+            loading={priority ? "eager" : "lazy"}
+            decoding="async"
+            fetchPriority={priority ? "high" : "auto"}
+            className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
+          />
           {magnify && lensPos && (
             <div
               aria-hidden
@@ -171,6 +185,7 @@ export default function ProductVisual({
             <img
               src={imageUrl}
               alt=""
+              decoding="async"
               className="max-h-full max-w-full rounded-lg object-contain"
               onClick={(e) => e.stopPropagation()}
             />

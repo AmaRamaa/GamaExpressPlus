@@ -191,6 +191,7 @@ export default function ProductDetailPage() {
               activeIndex={activeImageIndex}
               onIndexChange={setActiveImageIndex}
               magnify
+              priority
             />
           </div>
           {product.imageUrls && product.imageUrls.length > 1 && (
@@ -205,7 +206,7 @@ export default function ProductDetailPage() {
                     i === activeImageIndex ? "border-brand-red" : "border-transparent hover:border-surface-border"
                   }`}
                 >
-                  <img src={url} alt="" className="h-full w-full object-cover" />
+                  <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 </button>
               ))}
             </div>
