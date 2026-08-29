@@ -36,12 +36,16 @@ const submitSchema = z.object({
   locationCompany: z.string().optional(),
 });
 
-// Screens a customer-submitted listing before it ever reaches an admin: is
-// this actually a car part (any condition/category, not just the exterior
-// parts this store stocks today) rather than junk, a non-automotive item, or
-// spam. Mirrors the conventions of analyzeProductPhotos/translateProductFields
-// in routes/products.ts (same model, same json_schema output pattern) but is
-// its own function since the prompt/schema are unrelated to those.
+// Screens a customer-submitted listing so the admin has a heads-up on
+// whether it's actually a car part (any condition/category, not just the
+// exterior parts this store stocks today) rather than junk, a non-automotive
+// item, or spam. Advisory only -- it never changes `status` itself, every
+// submission still lands in PENDING and needs an explicit human
+// Approve/Reject before it can be promoted; this just gives the admin a
+// second opinion to weigh alongside the photos. Mirrors the conventions of
+// analyzeProductPhotos/translateProductFields in routes/products.ts (same
+// model, same json_schema output pattern) but is its own function since the
+// prompt/schema are unrelated to those.
 async function classifySubmission(submissionId: string) {
   if (!process.env.ANTHROPIC_API_KEY) return; // leave it PENDING for manual review
 
@@ -95,7 +99,6 @@ async function classifySubmission(submissionId: string) {
   await prisma.productSubmission.update({
     where: { id: submissionId },
     data: {
-      status: result.data.isCarPart ? "APPROVED" : "REJECTED",
       aiIsCarPart: result.data.isCarPart,
       aiReasoning: result.data.reasoning,
     },
