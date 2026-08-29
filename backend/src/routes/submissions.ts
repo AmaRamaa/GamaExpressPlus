@@ -184,16 +184,30 @@ router.patch("/:id", ...adminOnly, async (req, res) => {
 });
 
 // Called after the admin panel has created the real Product (via the normal
-// product form, pre-filled from this submission) -- just links the two
-// records and closes out the submission.
+// product form, pre-filled from this submission) -- links the two records,
+// copies the seller's contact info onto the Product (so it survives even if
+// this submission is later deleted from the review queue -- see the schema
+// comment on Product.sourceSeller*), and closes out the submission.
 const promoteSchema = z.object({ productId: z.string().min(1) });
 router.post("/:id/promote", ...adminOnly, async (req, res) => {
   const parsed = promoteSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
   try {
-    const submission = await prisma.productSubmission.update({
-      where: { id: req.params.id },
-      data: { status: "PROMOTED", promotedProductId: parsed.data.productId },
+    const submission = await prisma.$transaction(async (tx) => {
+      const updated = await tx.productSubmission.update({
+        where: { id: req.params.id },
+        data: { status: "PROMOTED" },
+      });
+      await tx.product.update({
+        where: { id: parsed.data.productId },
+        data: {
+          sourceSubmissionId: updated.id,
+          sourceSellerName: updated.submitterName,
+          sourceSellerEmail: updated.submitterEmail,
+          sourceSellerPhone: updated.submitterPhone,
+        },
+      });
+      return updated;
     });
     res.json(submission);
   } catch (err: any) {

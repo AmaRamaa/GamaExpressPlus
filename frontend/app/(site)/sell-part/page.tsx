@@ -115,8 +115,12 @@ export default function SellPartPage() {
   }
 
   const resultLabel: Record<PartResult["status"], string> = {
-    APPROVED: t.sellPart.resultApproved,
-    PROMOTED: t.sellPart.resultApproved,
+    // "APPROVED" here only means the AI screen thinks it's a genuine car
+    // part, not that the shop has agreed to buy it -- a human still reviews
+    // and prices it before anything happens, so the seller sees "Received"
+    // rather than something that reads as a commitment.
+    APPROVED: t.sellPart.resultReceived,
+    PROMOTED: t.sellPart.resultReceived,
     PENDING: t.sellPart.resultPending,
     REJECTED: t.sellPart.resultRejected,
     ERROR: t.sellPart.resultError,

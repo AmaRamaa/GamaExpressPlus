@@ -42,7 +42,7 @@ function NewProductPageContent() {
   async function handleSaved(product?: any) {
     if (submissionId && product?.id) {
       try {
-        await api.patch(`/submissions/${submissionId}/promote`, { productId: product.id }, token);
+        await api.post(`/submissions/${submissionId}/promote`, { productId: product.id }, token);
       } catch {
         // The product was still created successfully -- a failed link-back
         // just means the submission stays in its current status in the

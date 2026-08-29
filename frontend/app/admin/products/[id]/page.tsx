@@ -37,6 +37,9 @@ export default function EditProductPage() {
           isFeatured: p.isFeatured,
           isActive: p.isActive,
           images: (p.images || []).map((img: any) => ({ url: img.url, altText: img.altText || "", originalUrl: img.originalUrl || undefined })),
+          sourceSellerName: p.sourceSellerName || undefined,
+          sourceSellerEmail: p.sourceSellerEmail || undefined,
+          sourceSellerPhone: p.sourceSellerPhone || undefined,
           compatibility: (p.compatibility || []).map((c: any) => {
             const gen = c.engine?.generation;
             return {

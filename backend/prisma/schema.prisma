@@ -347,6 +347,16 @@ model Product {
 
   createdByDevice String? // set when created via the staff PIN flow, not a real user account
 
+  // Set when this product was created by promoting a customer "sell your
+  // part" submission -- see the comment on ProductSubmission for why the
+  // seller's contact info is copied here rather than only ever read through
+  // sourceSubmission.
+  sourceSubmission   ProductSubmission? @relation(fields: [sourceSubmissionId], references: [id], onDelete: SetNull)
+  sourceSubmissionId String?            @unique
+  sourceSellerName   String?
+  sourceSellerEmail  String?
+  sourceSellerPhone  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -621,9 +631,15 @@ model PartRequest {
 // Product row: it carries fields a real Product never needs (submitter
 // contact info, the AI's raw car-part verdict) and is missing ones a real
 // Product always needs (brand, category, price, partNumber) -- an admin
-// fills those in when promoting it via the normal product form. No relation
-// to Product: promotedProductId is just an id, so this table stays fully
-// independent of the (already large) Product model.
+// fills those in when promoting it via the normal product form.
+//
+// The promote step links back to the resulting Product (Product.sourceSubmission
+// below) so the admin panel can always show who a live part was bought from.
+// That link is nullable/SetNull rather than required: if this submission row
+// is later deleted from the review queue, the Product survives -- it keeps
+// its own copy of the seller's name/email/phone (Product.sourceSeller*),
+// only losing the pointer back to this fuller record (photos, description,
+// AI verdict).
 model ProductSubmission {
   id                String           @id @default(cuid())
   createdAt         DateTime         @default(now())
@@ -640,7 +656,7 @@ model ProductSubmission {
   status            SubmissionStatus @default(PENDING)
   aiIsCarPart       Boolean?
   aiReasoning       String?          @db.Text
-  promotedProductId String?
+  promotedProduct   Product?
 }
 
 model Notification {

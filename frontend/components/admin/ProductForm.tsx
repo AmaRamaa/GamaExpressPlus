@@ -54,6 +54,12 @@ export interface ProductFormValues {
   locationCompany: string;
   images: ImageRow[];
   compatibility: CompatibilityRow[];
+  // Read-only -- set once, at promotion time, from the customer submission
+  // this product originated from (see backend POST /submissions/:id/promote).
+  // Never part of the save payload; just displayed when present.
+  sourceSellerName?: string;
+  sourceSellerEmail?: string;
+  sourceSellerPhone?: string;
 }
 
 const EMPTY: ProductFormValues = {
@@ -659,6 +665,17 @@ export function ProductForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}
+
+      {values.sourceSellerName && (
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Sourced from</p>
+          <p className="text-sm text-ink">
+            {values.sourceSellerName}
+            {values.sourceSellerEmail ? ` · ${values.sourceSellerEmail}` : ""}
+            {values.sourceSellerPhone ? ` · ${values.sourceSellerPhone}` : ""}
+          </p>
+        </div>
+      )}
 
       <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <h2 className="mb-4 font-display text-sm font-semibold text-ink">Basic info</h2>
