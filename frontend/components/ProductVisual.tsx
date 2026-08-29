@@ -29,6 +29,7 @@ export default function ProductVisual({
   onIndexChange,
   magnify = false,
   priority = false,
+  sizes = "(min-width: 1024px) 400px, 50vw",
 }: {
   categorySlug: string;
   imageUrl?: string;
@@ -52,6 +53,10 @@ export default function ProductVisual({
   // previews, thumbnail strips) is off-screen more often than not and should
   // stay lazy so a page of 16 products doesn't fire 16 full downloads at once.
   priority?: boolean;
+  // How much of the viewport this image actually occupies, so next/image
+  // requests an appropriately-sized variant instead of the same one for a
+  // 160px hover preview and a half-viewport product-detail hero.
+  sizes?: string;
 }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lensPos, setLensPos] = useState<{ x: number; y: number } | null>(null);
@@ -96,13 +101,13 @@ export default function ProductVisual({
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setLensPos(null)}
         >
-          <img
+          <Image
             src={imageUrl}
             alt=""
-            loading={priority ? "eager" : "lazy"}
-            decoding="async"
-            fetchPriority={priority ? "high" : "auto"}
-            className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
+            fill
+            sizes={sizes}
+            priority={priority}
+            className={fit === "contain" ? "object-contain" : "object-cover"}
           />
           {magnify && lensPos && (
             <div
@@ -182,6 +187,10 @@ export default function ProductVisual({
                 </span>
               </>
             )}
+            {/* Plain <img>, not next/image: the lightbox sizes itself to the
+                photo's natural aspect ratio within the viewport, which
+                next/image's fill/width+height model doesn't support. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={imageUrl}
               alt=""

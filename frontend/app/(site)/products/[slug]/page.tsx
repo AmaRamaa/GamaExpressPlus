@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { Heart, ShoppingCart, Truck, Store, Minus, Plus, Pencil, X, Sparkles } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
@@ -192,6 +193,7 @@ export default function ProductDetailPage() {
               onIndexChange={setActiveImageIndex}
               magnify
               priority
+              sizes="(min-width: 1024px) 45vw, 100vw"
             />
           </div>
           {product.imageUrls && product.imageUrls.length > 1 && (
@@ -202,11 +204,11 @@ export default function ProductDetailPage() {
                   type="button"
                   onClick={() => setActiveImageIndex(i)}
                   aria-label={`View photo ${i + 1}`}
-                  className={`h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                  className={`relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
                     i === activeImageIndex ? "border-brand-red" : "border-transparent hover:border-surface-border"
                   }`}
                 >
-                  <img src={url} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+                  <Image src={url} alt="" fill sizes="64px" className="object-cover" />
                 </button>
               ))}
             </div>

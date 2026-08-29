@@ -179,7 +179,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
             photo above it instead, so the list stays dense by default. */}
         <div className="pointer-events-none absolute -top-2 left-3 z-20 hidden -translate-y-full overflow-hidden rounded-lg border border-surface-border bg-surface shadow-lifted group-hover/row:block">
           <div className="size-40">
-            <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} fit="contain" />
+            <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} fit="contain" sizes="160px" />
           </div>
         </div>
 
@@ -244,7 +244,13 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
 
       <Link href={`/products/${product.slug}`} className="block">
         <div className="relative mb-3 aspect-square overflow-hidden rounded-lg">
-          <ProductVisual categorySlug={product.categorySlug} imageUrl={product.imageUrl} fit="contain" className="transition-transform duration-300 group-hover:scale-105" />
+          <ProductVisual
+            categorySlug={product.categorySlug}
+            imageUrl={product.imageUrl}
+            fit="contain"
+            className="transition-transform duration-300 group-hover:scale-105"
+            sizes="(min-width: 1280px) 22vw, (min-width: 640px) 30vw, 45vw"
+          />
 
           {/* Hover overlay: quickview, matching Riardi's on-hover product actions */}
           <button
