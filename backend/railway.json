@@ -5,9 +5,9 @@
     "buildCommand": "npm install --include=dev && npm run build"
   },
   "deploy": {
-    "startCommand": "npx prisma migrate deploy && npm start",
+    "startCommand": "echo '[deploy] running prisma migrate deploy...'; npx prisma migrate deploy; code=$?; echo \"[deploy] migrate deploy exited with code $code\"; if [ $code -ne 0 ]; then echo '[deploy] migration failed, not starting server'; exit $code; fi; echo '[deploy] starting server...'; npm start",
     "healthcheckPath": "/api/health",
-    "healthcheckTimeout": 100,
+    "healthcheckTimeout": 180,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 5
   }
