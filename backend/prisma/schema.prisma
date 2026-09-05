@@ -114,6 +114,11 @@ enum SubmissionStatus {
   PROMOTED  // an admin turned it into a real Product
 }
 
+enum PrintEventStatus {
+  PRINTED
+  FAILED
+}
+
 // ────────────────────────────────────────────────────────────
 // USERS & ACCOUNTS
 // ────────────────────────────────────────────────────────────
@@ -363,6 +368,8 @@ model Product {
   sourceSellerName   String?
   sourceSellerEmail  String?
   sourceSellerPhone  String?
+
+  printEvents PrintEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -664,6 +671,28 @@ model ProductSubmission {
   aiIsCarPart       Boolean?
   aiReasoning       String?          @db.Text
   promotedProduct   Product?
+}
+
+// One row per print job the external label-printing service reports back to
+// us, via POST /api/print-events (see backend/src/routes/printEvents.ts).
+// externalJobId is whatever id that service assigns the job -- it's unique
+// here so a retried/duplicate webhook delivery for the same job just no-ops
+// instead of recording the print twice. product is nullable/SetNull (not
+// required) because the incoming payload may only carry a SKU the print
+// service knows about; if that SKU doesn't resolve to a Product, or the
+// Product is later deleted, the event itself is still kept for the audit
+// trail -- only the link is dropped.
+model PrintEvent {
+  id            String           @id @default(cuid())
+  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId     String?
+  sku           String? // fallback/raw identifier as sent by the print service
+  externalJobId String           @unique
+  status        PrintEventStatus
+  message       String? // e.g. the print service's error detail on FAILED
+  createdAt     DateTime         @default(now())
+
+  @@index([productId])
 }
 
 model Notification {
