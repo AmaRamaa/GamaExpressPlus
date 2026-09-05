@@ -146,8 +146,13 @@ function ProductsPageContent() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[240px_1fr]">
-        {/* Filters sidebar */}
-        <aside className="space-y-6">
+        {/* Filters sidebar -- sticky only at lg+, where it sits beside the
+            results in a two-column layout (MegaMenu, which sets the sticky
+            header's height, is also lg-only, so top-40 only needs to clear
+            the header at that one breakpoint). Below lg it stacks above the
+            results as a normal block, where "floating" would just pin a
+            small filter box mid-scroll instead of helping. */}
+        <aside className="space-y-6 lg:sticky lg:top-40 lg:self-start">
           <div className="rounded-xl border border-surface-border bg-surface p-4 shadow-soft">
             <p className="mb-3 flex items-center gap-2 text-sm font-semibold text-ink">
               <SlidersHorizontal size={14} /> Category
