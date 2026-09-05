@@ -114,11 +114,6 @@ enum SubmissionStatus {
   PROMOTED  // an admin turned it into a real Product
 }
 
-enum PrintEventStatus {
-  PRINTED
-  FAILED
-}
-
 // ────────────────────────────────────────────────────────────
 // USERS & ACCOUNTS
 // ────────────────────────────────────────────────────────────
@@ -368,8 +363,6 @@ model Product {
   sourceSellerName   String?
   sourceSellerEmail  String?
   sourceSellerPhone  String?
-
-  printEvents PrintEvent[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -673,26 +666,36 @@ model ProductSubmission {
   promotedProduct   Product?
 }
 
-// One row per print job the external label-printing service reports back to
-// us, via POST /api/print-events (see backend/src/routes/printEvents.ts).
-// externalJobId is whatever id that service assigns the job -- it's unique
-// here so a retried/duplicate webhook delivery for the same job just no-ops
-// instead of recording the print twice. product is nullable/SetNull (not
-// required) because the incoming payload may only carry a SKU the print
-// service knows about; if that SKU doesn't resolve to a Product, or the
-// Product is later deleted, the event itself is still kept for the audit
-// trail -- only the link is dropped.
+// One row per print job reported by the Windows print-monitor agent running
+// on each office/warehouse PC (see print-monitor/agent/print_monitor_agent.py
+// in the ops repo), via POST /api/print-events. Field names mirror that
+// agent's actual JSON payload directly -- this endpoint used to speak a
+// speculative product/sku/status shape invented before the agent existed;
+// that never matched what the agent sends (it has no concept of a product/SKU,
+// and only ever reports successful prints, so there's no status to carry).
+// jobKey is unique so a redelivered event (e.g. the agent restarting between
+// queuing a send and saving its bookmark) just no-ops instead of duplicating.
 model PrintEvent {
-  id            String           @id @default(cuid())
-  product       Product?         @relation(fields: [productId], references: [id], onDelete: SetNull)
-  productId     String?
-  sku           String? // fallback/raw identifier as sent by the print service
-  externalJobId String           @unique
-  status        PrintEventStatus
-  message       String? // e.g. the print service's error detail on FAILED
-  createdAt     DateTime         @default(now())
+  id              String    @id @default(cuid())
+  jobKey          String    @unique
+  jobId           String?
+  documentName    String?
+  userName        String?
+  clientComputer  String?
+  printerName     String?
+  portName        String?
+  sizeBytes       Int?
+  pages           Int?
+  printedAt       DateTime?
+  agentHostname   String
+  agentIp         String?
+  eventRecordId   String?
+  source          String
+  capturedPdfFile String? // local path on the reporting PC, not a URL -- the PDF itself isn't uploaded
+  createdAt       DateTime  @default(now())
 
-  @@index([productId])
+  @@index([agentHostname])
+  @@index([printedAt])
 }
 
 model Notification {

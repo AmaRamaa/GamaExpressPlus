@@ -1,21 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { Printer, CheckCircle2, XCircle } from "lucide-react";
+import { Printer, FileText } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 import Pagination from "@/components/Pagination";
 
 interface PrintEvent {
   id: string;
-  productId: string | null;
-  sku: string | null;
-  externalJobId: string;
-  status: "PRINTED" | "FAILED";
-  message: string | null;
+  jobKey: string;
+  jobId: string | null;
+  documentName: string | null;
+  userName: string | null;
+  clientComputer: string | null;
+  printerName: string | null;
+  sizeBytes: number | null;
+  pages: number | null;
+  printedAt: string | null;
+  agentHostname: string;
+  capturedPdfFile: string | null;
   createdAt: string;
-  product: { id: string; title: string; sku: string; slug: string } | null;
 }
 
 interface ListResponse {
@@ -26,6 +30,12 @@ interface ListResponse {
 }
 
 const LIMIT = 25;
+
+function formatSize(bytes: number | null): string {
+  if (bytes == null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
+}
 
 export default function PrintEventsPage() {
   const token = useAdminStore((s) => s.token);
@@ -48,7 +58,7 @@ export default function PrintEventsPage() {
         </h1>
         <p className="text-sm text-ink-soft">
           {data ? `${data.total} print event${data.total === 1 ? "" : "s"} recorded` : "Loading…"} — reported by the
-          label-printing service so you can see what's already been printed and avoid sending duplicates.
+          print-monitor agent running on each office/warehouse PC.
         </p>
       </div>
 
@@ -58,47 +68,45 @@ export default function PrintEventsPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-100 bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-400">
-              <th className="px-3 py-2 font-medium">Product</th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="px-3 py-2 font-medium">Job ID</th>
-              <th className="px-3 py-2 font-medium">Message</th>
+              <th className="px-3 py-2 font-medium">Document</th>
+              <th className="px-3 py-2 font-medium">User</th>
+              <th className="px-3 py-2 font-medium">PC</th>
+              <th className="px-3 py-2 font-medium">Printer</th>
+              <th className="px-3 py-2 font-medium">Pages</th>
+              <th className="px-3 py-2 font-medium">Size</th>
+              <th className="px-3 py-2 font-medium">File</th>
               <th className="px-3 py-2 font-medium">Printed at</th>
             </tr>
           </thead>
           <tbody>
             {data?.items.map((e) => (
               <tr key={e.id} className="border-b border-slate-50 hover:bg-slate-50">
-                <td className="px-3 py-2">
-                  {e.product ? (
-                    <Link href={`/admin/products/${e.product.id}`} className="font-medium text-ink hover:text-brand-red">
-                      {e.product.title}
-                    </Link>
-                  ) : (
-                    <span className="text-ink-soft" title="No product matched this event's productId/sku">
-                      Unmatched{e.sku ? ` (${e.sku})` : ""}
-                    </span>
-                  )}
-                  <div className="part-code text-xs text-ink-soft">{e.product?.sku ?? e.sku ?? "—"}</div>
-                </td>
-                <td className="px-3 py-2">
-                  {e.status === "PRINTED" ? (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                      <CheckCircle2 size={12} /> Printed
+                <td className="px-3 py-2 font-medium text-ink">{e.documentName ?? "—"}</td>
+                <td className="px-3 py-2 text-ink-soft">{e.userName ?? "—"}</td>
+                <td className="part-code px-3 py-2 text-xs text-ink-soft">{e.agentHostname}</td>
+                <td className="px-3 py-2 text-ink-soft">{e.printerName ?? "—"}</td>
+                <td className="px-3 py-2 text-ink-soft">{e.pages ?? "—"}</td>
+                <td className="px-3 py-2 text-ink-soft">{formatSize(e.sizeBytes)}</td>
+                <td className="px-3 py-2 text-ink-soft">
+                  {e.capturedPdfFile ? (
+                    <span
+                      className="inline-flex items-center gap-1 text-emerald-600"
+                      title={`Local file on ${e.agentHostname}: ${e.capturedPdfFile}`}
+                    >
+                      <FileText size={14} /> Captured
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
-                      <XCircle size={12} /> Failed
-                    </span>
+                    <span className="text-ink-soft">—</span>
                   )}
                 </td>
-                <td className="part-code px-3 py-2 text-xs text-ink-soft">{e.externalJobId}</td>
-                <td className="px-3 py-2 text-ink-soft">{e.message ?? "—"}</td>
-                <td className="px-3 py-2 text-ink-soft">{new Date(e.createdAt).toLocaleString()}</td>
+                <td className="px-3 py-2 text-ink-soft">
+                  {e.printedAt ? new Date(e.printedAt).toLocaleString() : new Date(e.createdAt).toLocaleString()}
+                </td>
               </tr>
             ))}
             {data && data.items.length === 0 && (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-ink-soft">
+                <td colSpan={8} className="px-4 py-8 text-center text-ink-soft">
                   No print events yet.
                 </td>
               </tr>

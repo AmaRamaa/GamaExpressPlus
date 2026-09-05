@@ -5,51 +5,69 @@ import { requireAuth, requireRole, requirePrintServiceApiKey } from "../middlewa
 
 const router = Router();
 
-// POST /api/print-events -- called by the external label-printing service,
-// not a logged-in user, so it's gated by requirePrintServiceApiKey (a static
-// API key) instead of the normal JWT auth. Body shape is a best guess ahead
-// of that service's actual spec -- adjust field names here once it's known.
-const printEventSchema = z
-  .object({
-    externalJobId: z.string().min(1),
-    status: z.enum(["PRINTED", "FAILED"]),
-    productId: z.string().optional(),
-    sku: z.string().optional(),
-    message: z.string().optional(),
-  })
-  .refine((data) => data.productId || data.sku, {
-    message: "Provide productId and/or sku so the event can be tied to a product",
-  });
+// POST /api/print-events -- called by the Windows print-monitor agent
+// running on each office/warehouse PC, not a logged-in user, so it's gated
+// by requirePrintServiceApiKey (a static API key) instead of the normal JWT
+// auth. Field names mirror the agent's actual JSON payload directly (see
+// print-monitor/agent/print_monitor_agent.py in the ops repo) -- there is no
+// product/SKU concept here and no failure case (the agent only ever reports
+// a job after Windows confirms it printed).
+const printEventSchema = z.object({
+  job_key: z.string().min(1),
+  job_id: z.string().nullable().optional(),
+  document_name: z.string().nullable().optional(),
+  user_name: z.string().nullable().optional(),
+  client_computer: z.string().nullable().optional(),
+  printer_name: z.string().nullable().optional(),
+  port_name: z.string().nullable().optional(),
+  size_bytes: z.number().int().nullable().optional(),
+  pages: z.number().int().nullable().optional(),
+  printed_at: z.string().nullable().optional(),
+  agent_hostname: z.string().min(1),
+  agent_ip: z.string().nullable().optional(),
+  event_record_id: z.string().nullable().optional(),
+  source: z.string().min(1),
+  captured_pdf_file: z.string().nullable().optional(),
+});
+
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 router.post("/", requirePrintServiceApiKey, async (req, res) => {
   const parsed = printEventSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-  const { externalJobId, status, productId, sku, message } = parsed.data;
-
-  // Resolve to a real Product where possible -- prefer the explicit id, fall
-  // back to looking the sku up. Neither resolving is not an error: the event
-  // (and the raw sku the print service sent) is still recorded either way.
-  let resolvedProductId: string | null = null;
-  if (productId) {
-    const product = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
-    resolvedProductId = product?.id ?? null;
-  }
-  if (!resolvedProductId && sku) {
-    const product = await prisma.product.findUnique({ where: { sku }, select: { id: true } });
-    resolvedProductId = product?.id ?? null;
-  }
+  const body = parsed.data;
 
   try {
     const event = await prisma.printEvent.create({
-      data: { externalJobId, status, sku, message, productId: resolvedProductId },
+      data: {
+        jobKey: body.job_key,
+        jobId: body.job_id ?? null,
+        documentName: body.document_name ?? null,
+        userName: body.user_name ?? null,
+        clientComputer: body.client_computer ?? null,
+        printerName: body.printer_name ?? null,
+        portName: body.port_name ?? null,
+        sizeBytes: body.size_bytes ?? null,
+        pages: body.pages ?? null,
+        printedAt: parseDate(body.printed_at),
+        agentHostname: body.agent_hostname,
+        agentIp: body.agent_ip ?? null,
+        eventRecordId: body.event_record_id ?? null,
+        source: body.source,
+        capturedPdfFile: body.captured_pdf_file ?? null,
+      },
     });
     res.status(201).json(event);
   } catch (err: any) {
-    // A retried/duplicate webhook delivery for a job we've already recorded
-    // -- treat it as a harmless no-op (return the existing row) rather than
-    // a 500, so the print service's retry logic doesn't need special-casing.
+    // A retried/duplicate delivery for a job we've already recorded -- treat
+    // it as a harmless no-op (return the existing row) rather than a 500, so
+    // the agent's own retry logic doesn't need special-casing.
     if (err.code === "P2002") {
-      const existing = await prisma.printEvent.findUnique({ where: { externalJobId } });
+      const existing = await prisma.printEvent.findUnique({ where: { jobKey: body.job_key } });
       return res.status(200).json(existing);
     }
     throw err;
@@ -68,7 +86,6 @@ router.get("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (req, re
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
       take: limit,
-      include: { product: { select: { id: true, title: true, sku: true, slug: true } } },
     }),
     prisma.printEvent.count(),
   ]);
