@@ -60,9 +60,6 @@ export default function HomeContent({
             sizes="100vw"
             className="hidden object-cover lg:block"
           />
-          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90% lg:block" />
-          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-t from-ink/40 to-transparent lg:block" />
-
           <div className="container-page relative grid gap-10 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
             <div className="flex flex-col justify-center">
               <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red lg:text-brand-red-light">
@@ -90,36 +87,18 @@ export default function HomeContent({
             </div>
           </div>
 
-          {/* Trust strip -- still on the dark part of the fade at lg+, plain on mobile */}
-          <div className="relative border-t border-surface-border lg:border-white/10">
-            <div className="container-page grid grid-cols-2 gap-6 py-6 sm:grid-cols-4">
-              {t.home.trust.map((pt, i) => {
-                const Icon = trustIcons[i];
-                return (
-                  <div key={pt.title} className="flex items-start gap-3">
-                    <Icon size={20} className="mt-0.5 shrink-0 text-brand-red" />
-                    <div>
-                      <p className="text-sm font-semibold text-ink lg:text-white">{pt.title}</p>
-                      <p className="text-xs text-ink-soft lg:text-white/50">{pt.desc}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* The photo itself already fades to white toward the bottom, so
               just hold solid white through the exact zone the floating
               category card's negative margin pulls it over (height below
-              must match lg:-mt-20 on the section after this one) -- no
+              must match lg:-mt-28 on the section after this one) -- no
               extra dark-to-white overlay needed, that would just
               reintroduce a dark band on top of the photo's own fade. */}
-          <div className="hidden h-14 bg-surface lg:block lg:h-20" />
+          <div className="hidden h-20 bg-surface lg:block lg:h-28" />
         </section>
 
         {/* Categories -- pulled up to float over the hero's lower edge,
             instead of sitting in its own section with a big gap above it. */}
-        <section className="relative -mt-14 pb-10 lg:-mt-20">
+        <section className="relative -mt-20 pb-10 lg:-mt-28">
           <div className="container-page">
             <div className="rounded-2xl bg-surface p-6 shadow-lifted sm:p-8">
               <div className="mb-5 flex items-end justify-between">
@@ -156,6 +135,23 @@ export default function HomeContent({
                       <p className="text-sm font-semibold text-ink">{c.name}</p>
                       <p className="mt-0.5 text-xs text-ink-soft">{c.productCount.toLocaleString()} {t.home.partsSuffix}</p>
                     </Link>
+                  );
+                })}
+              </div>
+
+              {/* Trust strip -- moved here below the category grid; plain
+                  light styling since it no longer sits on the dark hero. */}
+              <div className="mt-6 grid grid-cols-2 gap-6 border-t border-surface-border pt-6 sm:grid-cols-4">
+                {t.home.trust.map((pt, i) => {
+                  const Icon = trustIcons[i];
+                  return (
+                    <div key={pt.title} className="flex items-start gap-3">
+                      <Icon size={20} className="mt-0.5 shrink-0 text-brand-red" />
+                      <div>
+                        <p className="text-sm font-semibold text-ink">{pt.title}</p>
+                        <p className="text-xs text-ink-soft">{pt.desc}</p>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
