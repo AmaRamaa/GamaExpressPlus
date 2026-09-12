@@ -108,13 +108,12 @@ export default function HomeContent({
             </div>
           </div>
 
-          {/* Fade the photo to white *before* the floating category card
-              appears, so the card doesn't pop against still-dark
-              background -- then hold solid white through the exact zone
-              the card's negative margin pulls it over (heights below must
-              match -mt-14/lg:-mt-20 on the section after this one). Mobile
-              is already plain white, so no fade needed there. */}
-          <div className="hidden h-20 bg-gradient-to-b from-ink to-surface lg:block lg:h-28" />
+          {/* The photo itself already fades to white toward the bottom, so
+              just hold solid white through the exact zone the floating
+              category card's negative margin pulls it over (height below
+              must match lg:-mt-20 on the section after this one) -- no
+              extra dark-to-white overlay needed, that would just
+              reintroduce a dark band on top of the photo's own fade. */}
           <div className="hidden h-14 bg-surface lg:block lg:h-20" />
         </section>
 
