@@ -41,14 +41,7 @@ export default function HomeContent({
 
   return (
     <div>
-      {/* Hero + trust strip + categories share one continuous background that
-          fades from black at the top to white by the end of the category
-          grid, instead of being separate flat-colored blocks. */}
-      <div className="relative bg-gradient-to-b from-ink from-0% via-ink via-45% to-surface to-100%">
-        {/* Hero -- two shots of the same cars (dark studio, bright studio),
-            with the dark one masked to fade out toward the bottom of the
-            hero so the light version shows through underneath as you scroll,
-            echoing the black-to-white fade of the page background itself. */}
+      <div className="relative bg-surface">
         {/* Below lg, skip the dark photo treatment entirely -- plain white,
             dark text, no overlays -- and let it fade in only at lg+. */}
         <section className="relative overflow-hidden bg-surface lg:bg-transparent">
