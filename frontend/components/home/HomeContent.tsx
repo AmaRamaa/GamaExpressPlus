@@ -45,15 +45,30 @@ export default function HomeContent({
           fades from black at the top to white by the end of the category
           grid, instead of being separate flat-colored blocks. */}
       <div className="relative bg-gradient-to-b from-ink from-0% via-ink via-45% to-surface to-100%">
-        {/* Hero -- real photo as the full background */}
+        {/* Hero -- two shots of the same cars (dark studio, bright studio),
+            with the dark one masked to fade out toward the bottom of the
+            hero so the light version shows through underneath as you scroll,
+            echoing the black-to-white fade of the page background itself. */}
         <section className="relative overflow-hidden">
           <Image
-            src="/hero-car.webp"
+            src="/hero-car-light.jpg"
             alt=""
             fill
             priority
             sizes="100vw"
             className="object-cover"
+          />
+          <Image
+            src="/hero-car.jpg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{
+              maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
+            }}
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90%" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/40 to-transparent" />
@@ -103,25 +118,27 @@ export default function HomeContent({
           </div>
         </section>
 
-        {/* Categories -- sits on the part of the fade that's turned light again */}
-        <section className="relative py-10">
+        {/* Categories -- pulled up to float over the hero's lower edge,
+            instead of sitting in its own section with a big gap above it. */}
+        <section className="relative -mt-14 pb-10 lg:-mt-20">
           <div className="container-page">
-            <div className="mb-5 flex items-end justify-between">
-              <h2 className="font-display text-2xl font-bold text-ink">{t.home.shopByCategory}</h2>
-              <Link href="/products" className="flex items-center gap-1 text-sm font-medium text-brand-red hover:underline">
-                {t.home.viewAll} <ArrowRight size={14} />
-              </Link>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {categories.map((c) => {
-                const Icon = categoryIcons[c.slug] || Wrench;
-                return (
-                  <Link
-                    key={c.id}
-                    href={`/products?category=${c.slug}`}
-                    className="group relative overflow-hidden rounded-xl border border-surface-border bg-surface p-5 text-center shadow-soft transition-shadow hover:shadow-card"
-                  >
-                    <span className="absolute inset-x-0 top-0 h-1 bg-brand-red opacity-0 transition-opacity group-hover:opacity-100" />
+            <div className="rounded-2xl bg-surface p-6 shadow-lifted sm:p-8">
+              <div className="mb-5 flex items-end justify-between">
+                <h2 className="font-display text-2xl font-bold text-ink">{t.home.shopByCategory}</h2>
+                <Link href="/products" className="flex items-center gap-1 text-sm font-medium text-brand-red hover:underline">
+                  {t.home.viewAll} <ArrowRight size={14} />
+                </Link>
+              </div>
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {categories.map((c) => {
+                  const Icon = categoryIcons[c.slug] || Wrench;
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/products?category=${c.slug}`}
+                      className="group relative overflow-hidden rounded-xl border border-surface-border bg-surface-muted p-5 text-center shadow-soft transition-shadow hover:shadow-card"
+                    >
+                      <span className="absolute inset-x-0 top-0 h-1 bg-brand-red opacity-0 transition-opacity group-hover:opacity-100" />
                     <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-red-light text-brand-red group-hover:bg-brand-red group-hover:text-white">
                       <Icon size={20} />
                     </div>
@@ -130,6 +147,7 @@ export default function HomeContent({
                   </Link>
                 );
               })}
+              </div>
             </div>
           </div>
         </section>
