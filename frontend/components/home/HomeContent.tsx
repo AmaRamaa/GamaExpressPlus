@@ -93,7 +93,7 @@ export default function HomeContent({
             instead of sitting in its own section with a big gap above it. */}
         <section className="relative -mt-20 pb-10 lg:-mt-28">
           <div className="container-page">
-            <div className="rounded-2xl bg-surface p-6 shadow-lifted sm:p-8">
+            <div className="rounded-2xl border border-white/40 bg-surface/70 p-6 shadow-lifted backdrop-blur-xl sm:p-8">
               <div className="mb-5 flex items-end justify-between">
                 <h2 className="font-display text-2xl font-bold text-ink">{t.home.shopByCategory}</h2>
                 <Link href="/products" className="flex items-center gap-1 text-sm font-medium text-brand-red hover:underline">
