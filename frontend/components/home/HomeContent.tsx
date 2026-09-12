@@ -49,35 +49,38 @@ export default function HomeContent({
             with the dark one masked to fade out toward the bottom of the
             hero so the light version shows through underneath as you scroll,
             echoing the black-to-white fade of the page background itself. */}
-        <section className="relative overflow-hidden">
+        {/* Below lg, skip the dark photo treatment entirely -- plain white,
+            dark text, no overlays -- and let it fade in only at lg+. */}
+        <section className="relative overflow-hidden bg-surface lg:bg-transparent">
           <Image
             src="/hero-car-light.jpg"
             alt=""
             fill
             priority
             sizes="100vw"
-            className="object-cover"
+            className="hidden object-cover lg:block"
           />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90%" />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/40 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90% lg:block" />
+          <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-t from-ink/40 to-transparent lg:block" />
 
           <div className="container-page relative grid gap-10 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
             <div className="flex flex-col justify-center">
-              <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red-light">
-                <Image src="/emblem-white.png" alt="" width={900} height={945} className="h-3.5 w-auto" />
+              <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red lg:text-brand-red-light">
+                <Image src="/emblem-red.png" alt="" width={900} height={945} className="h-3.5 w-auto lg:hidden" />
+                <Image src="/emblem-white.png" alt="" width={900} height={945} className="hidden h-3.5 w-auto lg:block" />
                 {t.home.badge}
               </span>
-              <h1 className="font-display text-4xl font-bold leading-[1.05] text-white sm:text-5xl lg:text-6xl">
+              <h1 className="font-display text-4xl font-bold leading-[1.05] text-ink sm:text-5xl lg:text-6xl lg:text-white">
                 {t.home.heroTitle1}
                 <br />
                 {t.home.heroTitle2} <span className="text-brand-red">{t.home.heroTitleHighlight}</span>
               </h1>
-              <p className="mt-5 max-w-lg text-base text-white/70">{t.home.heroDesc}</p>
+              <p className="mt-5 max-w-lg text-base text-ink-soft lg:text-white/70">{t.home.heroDesc}</p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/products" className="rounded-lg bg-brand-red px-5 py-3 text-sm font-semibold text-white shadow-lifted hover:bg-brand-red-dark">
                   {t.home.browseAll}
                 </Link>
-                <Link href="/vehicle-finder" className="rounded-lg border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-white hover:border-brand-red hover:text-brand-red-light">
+                <Link href="/vehicle-finder" className="rounded-lg border border-surface-border bg-surface px-5 py-3 text-sm font-semibold text-ink hover:border-brand-red hover:text-brand-red lg:border-white/20 lg:bg-white/5 lg:text-white lg:hover:text-brand-red-light">
                   {t.home.openFinder}
                 </Link>
               </div>
@@ -87,8 +90,8 @@ export default function HomeContent({
             </div>
           </div>
 
-          {/* Trust strip -- still on the dark part of the fade */}
-          <div className="relative border-t border-white/10">
+          {/* Trust strip -- still on the dark part of the fade at lg+, plain on mobile */}
+          <div className="relative border-t border-surface-border lg:border-white/10">
             <div className="container-page grid grid-cols-2 gap-6 py-6 sm:grid-cols-4">
               {t.home.trust.map((pt, i) => {
                 const Icon = trustIcons[i];
@@ -96,14 +99,23 @@ export default function HomeContent({
                   <div key={pt.title} className="flex items-start gap-3">
                     <Icon size={20} className="mt-0.5 shrink-0 text-brand-red" />
                     <div>
-                      <p className="text-sm font-semibold text-white">{pt.title}</p>
-                      <p className="text-xs text-white/50">{pt.desc}</p>
+                      <p className="text-sm font-semibold text-ink lg:text-white">{pt.title}</p>
+                      <p className="text-xs text-ink-soft lg:text-white/50">{pt.desc}</p>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
+
+          {/* Fade the photo to white *before* the floating category card
+              appears, so the card doesn't pop against still-dark
+              background -- then hold solid white through the exact zone
+              the card's negative margin pulls it over (heights below must
+              match -mt-14/lg:-mt-20 on the section after this one). Mobile
+              is already plain white, so no fade needed there. */}
+          <div className="hidden h-20 bg-gradient-to-b from-ink to-surface lg:block lg:h-28" />
+          <div className="hidden h-14 bg-surface lg:block lg:h-20" />
         </section>
 
         {/* Categories -- pulled up to float over the hero's lower edge,
