@@ -176,7 +176,7 @@ export default function VehicleFinder({ variant: variantProp = "card", glass = f
       className={
         variantProp === "card"
           ? glass
-            ? "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted lg:border-white/40 lg:bg-surface/60 lg:backdrop-blur-xl"
+            ? "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted lg:border-white/50 lg:bg-surface/90 lg:backdrop-blur-sm"
             : "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted"
           : "w-full"
       }

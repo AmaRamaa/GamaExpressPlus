@@ -53,7 +53,7 @@ export default function HomeContent({
             sizes="100vw"
             className="hidden object-cover lg:block"
           />
-          <div className="container-page relative grid gap-10 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:py-20">
+          <div className="container-page relative grid gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-28">
             <div className="flex flex-col justify-center">
               <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red lg:text-brand-red-light">
                 <Image src="/emblem-red.png" alt="" width={900} height={945} className="h-3.5 w-auto lg:hidden" />
@@ -83,17 +83,17 @@ export default function HomeContent({
           {/* The photo itself already fades to white toward the bottom, so
               just hold solid white through the exact zone the floating
               category card's negative margin pulls it over (height below
-              must match lg:-mt-28 on the section after this one) -- no
+              must match lg:-mt-32 on the section after this one) -- no
               extra dark-to-white overlay needed, that would just
               reintroduce a dark band on top of the photo's own fade. */}
-          <div className="hidden h-20 bg-surface lg:block lg:h-28" />
+          <div className="hidden h-24 bg-surface lg:block lg:h-32" />
         </section>
 
         {/* Categories -- pulled up to float over the hero's lower edge,
             instead of sitting in its own section with a big gap above it. */}
-        <section className="relative -mt-20 pb-10 lg:-mt-28">
+        <section className="relative -mt-24 pb-10 lg:-mt-32">
           <div className="container-page">
-            <div className="rounded-2xl border border-white/40 bg-surface/70 p-6 shadow-lifted backdrop-blur-xl sm:p-8">
+            <div className="rounded-2xl border border-white/50 bg-surface/90 p-6 shadow-lifted backdrop-blur-sm sm:p-8">
               <div className="mb-5 flex items-end justify-between">
                 <h2 className="font-display text-2xl font-bold text-ink">{t.home.shopByCategory}</h2>
                 <Link href="/products" className="flex items-center gap-1 text-sm font-medium text-brand-red hover:underline">
