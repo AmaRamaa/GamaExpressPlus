@@ -56,7 +56,7 @@ export default function HomeContent({
             fill
             priority
             sizes="100vw"
-            className="object-cover"
+            className="object-cover object-top"
           />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90%" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/40 to-transparent" />
