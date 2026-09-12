@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { ShieldCheck, Truck, Wrench, Headset, ArrowRight, CarFront, Lightbulb, Frame, PanelTop } from "lucide-react";
+import { ShieldCheck, Truck, Wrench, Headset, ArrowRight, CarFront, Car, Lightbulb, Flashlight, Grid3x3, DoorOpen } from "lucide-react";
 import VehicleFinder from "@/components/VehicleFinder";
 import ProductTabs from "@/components/ProductTabs";
 import PromoBanners from "@/components/PromoBanners";
@@ -10,10 +10,14 @@ import { useT } from "@/lib/i18n";
 import type { Category, Brand, Product } from "@/lib/types";
 
 const categoryIcons: Record<string, typeof Wrench> = {
-  "bumpers-body-panels": CarFront,
-  "lighting": Lightbulb,
-  "mirrors-glass": Frame,
-  "trim-grilles": PanelTop,
+  "mbrojtesa-pare": CarFront,
+  "mbrojtesa-mbrapa": Car,
+  "drita-para-feneret": Lightbulb,
+  "drita-mbrapa-shtopat": Flashlight,
+  "maska-dekoruese": Grid3x3,
+  "rrjetat-e-mbrojtesit": ShieldCheck,
+  "dyrt-e-veturav": DoorOpen,
+  "te-p-rgjithshm": Wrench,
 };
 
 const trustIcons = [ShieldCheck, Truck, Wrench, Headset];
