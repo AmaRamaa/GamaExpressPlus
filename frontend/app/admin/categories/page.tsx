@@ -10,6 +10,7 @@ interface Category {
   name: string;
   slug: string;
   sortOrder: number;
+  imageUrl?: string | null;
   children: Category[];
 }
 
@@ -23,6 +24,7 @@ export default function AdminCategoriesPage() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
+  const [editImageUrl, setEditImageUrl] = useState("");
   const [rowBusy, setRowBusy] = useState<string | null>(null);
   const [moveBusyIds, setMoveBusyIds] = useState<Set<string>>(new Set());
 
@@ -60,6 +62,7 @@ export default function AdminCategoriesPage() {
   function startEdit(c: Category) {
     setEditingId(c.id);
     setEditName(c.name);
+    setEditImageUrl(c.imageUrl || "");
   }
 
   async function saveEdit(id: string) {
@@ -67,7 +70,11 @@ export default function AdminCategoriesPage() {
     setRowBusy(id);
     setError("");
     try {
-      await api.patch(`/catalog/categories/${id}`, { name: editName.trim(), slug: slugify(editName) }, token);
+      await api.patch(
+        `/catalog/categories/${id}`,
+        { name: editName.trim(), slug: slugify(editName), imageUrl: editImageUrl.trim() || undefined },
+        token
+      );
       setEditingId(null);
       load();
     } catch (err) {
@@ -122,12 +129,21 @@ export default function AdminCategoriesPage() {
         <div className="flex items-center gap-3">
           {editingId === c.id ? (
             <>
-              <input
-                className="flex-1 rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand-red"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                autoFocus
-              />
+              <div className="flex flex-1 flex-col gap-1.5">
+                <input
+                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-brand-red"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Category name"
+                  autoFocus
+                />
+                <input
+                  className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs outline-none focus:border-brand-red"
+                  value={editImageUrl}
+                  onChange={(e) => setEditImageUrl(e.target.value)}
+                  placeholder="Image URL (shown on homepage instead of the icon)"
+                />
+              </div>
               <button onClick={() => saveEdit(c.id)} disabled={rowBusy === c.id} aria-label="Save" className="rounded p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-40">
                 <Check size={16} />
               </button>
@@ -157,7 +173,12 @@ export default function AdminCategoriesPage() {
                   <ArrowDown size={13} />
                 </button>
               </div>
-              <FolderTree size={14} className="text-slate-400" />
+              {c.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={c.imageUrl} alt="" className="h-6 w-6 shrink-0 rounded object-cover" />
+              ) : (
+                <FolderTree size={14} className="text-slate-400" />
+              )}
               <span className="text-sm font-medium text-ink">{indent ? "↳ " : ""}{c.name}</span>
               <span className="text-xs text-ink-soft">/{c.slug}</span>
               <div className="ml-auto flex gap-0.5">

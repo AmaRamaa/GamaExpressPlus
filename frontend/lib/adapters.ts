@@ -64,6 +64,7 @@ export function mapCategory(raw: any): Category {
     name: raw.name,
     slug: raw.slug,
     icon: raw.icon,
+    imageUrl: raw.imageUrl || undefined,
     productCount: raw._count?.products ?? raw.productCount ?? 0,
   };
 }
