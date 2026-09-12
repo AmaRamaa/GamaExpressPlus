@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Search, Clock, TrendingUp, Tags, FolderTree, ArrowRight, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/admin-store";
 import { getEffectivePrice } from "@/lib/pricing";
 import { PartCode, CallForQuote } from "./ui-bits";
 
@@ -33,6 +34,8 @@ export default function SearchBar() {
   const router = useRouter();
   const user = useStore((s) => s.user);
   const token = useStore((s) => s.token);
+  const adminUser = useAdminStore((s) => s.user);
+  const isAdmin = adminUser?.role === "ADMIN" || adminUser?.role === "SUPER_ADMIN";
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestedProduct[]>([]);
@@ -141,7 +144,7 @@ export default function SearchBar() {
                         >
                           <div className="flex-1">
                             <p className="text-sm font-medium text-ink">{p.title}</p>
-                            {p.isAiSuggested && (
+                            {isAdmin && p.isAiSuggested && (
                               <span className="mb-0.5 mt-0.5 inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-brand-red">
                                 <Sparkles size={9} /> AI
                               </span>

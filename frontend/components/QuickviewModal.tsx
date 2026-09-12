@@ -4,6 +4,7 @@ import { X, ShoppingCart, Heart, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { Product } from "@/lib/types";
 import { useStore } from "@/lib/store";
+import { useAdminStore } from "@/lib/admin-store";
 import { useT } from "@/lib/i18n";
 import { localizeProductText } from "@/lib/adapters";
 import { PartCode, StockBadge } from "./ui-bits";
@@ -14,6 +15,8 @@ export default function QuickviewModal({ product, onClose }: { product: Product;
   const addToCart = useStore((s) => s.addToCart);
   const toggleWishlist = useStore((s) => s.toggleWishlist);
   const isWishlisted = useStore((s) => s.wishlist.includes(product.id));
+  const adminUser = useAdminStore((s) => s.user);
+  const isAdmin = adminUser?.role === "ADMIN" || adminUser?.role === "SUPER_ADMIN";
   const { locale } = useT();
   const { title, shortDescription } = localizeProductText(product, locale);
 
@@ -41,7 +44,7 @@ export default function QuickviewModal({ product, onClose }: { product: Product;
         <div className="flex flex-col">
           <span className="text-xs font-semibold uppercase tracking-wide text-brand-red">{product.brand.name}</span>
           <h3 className="mt-1 font-display text-xl font-bold text-ink">{title}</h3>
-          {product.isAiSuggested && (
+          {isAdmin && product.isAiSuggested && (
             <span
               title="AI-suggested listing, pending review"
               className="mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-red"

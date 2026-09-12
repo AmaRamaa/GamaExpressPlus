@@ -233,7 +233,7 @@ export default function ProductDetailPage() {
             </div>
           </div>
           <h1 className="font-display text-3xl font-bold text-ink">{title}</h1>
-          {product.isAiSuggested && (
+          {isAdmin && product.isAiSuggested && (
             <span
               title="AI-suggested listing, pending review"
               className="mb-2 mt-1 inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brand-red"
@@ -241,7 +241,7 @@ export default function ProductDetailPage() {
               <Sparkles size={11} /> AI-suggested
             </span>
           )}
-          {!product.isAiSuggested && <div className="mb-2" />}
+          {!(isAdmin && product.isAiSuggested) && <div className="mb-2" />}
 
           <div className="my-4 flex flex-wrap gap-x-6 gap-y-2">
             <PartCode label="SKU">{product.sku}</PartCode>

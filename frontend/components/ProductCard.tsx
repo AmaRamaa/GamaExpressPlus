@@ -46,7 +46,7 @@ export default function ProductCard({ product, layout = "grid" }: { product: Pro
 
   const displayTitle = titleOverride ?? title;
 
-  const aiTag = product.isAiSuggested && (
+  const aiTag = isAdmin && product.isAiSuggested && (
     <span
       title="AI-suggested listing, pending review"
       className="inline-flex w-fit items-center gap-1 rounded-full bg-brand-red-light px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-red"
