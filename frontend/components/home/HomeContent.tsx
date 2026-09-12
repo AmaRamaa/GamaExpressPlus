@@ -76,7 +76,7 @@ export default function HomeContent({
               </div>
             </div>
             <div className="flex items-center">
-              <VehicleFinder />
+              <VehicleFinder glass />
             </div>
           </div>
 

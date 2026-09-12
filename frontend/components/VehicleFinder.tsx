@@ -43,7 +43,7 @@ function MakeBadge({ make, size = 20 }: { make: Make; size?: number }) {
   );
 }
 
-export default function VehicleFinder({ variant: variantProp = "card" }: { variant?: "card" | "inline" }) {
+export default function VehicleFinder({ variant: variantProp = "card", glass = false }: { variant?: "card" | "inline"; glass?: boolean }) {
   const router = useRouter();
   const setVehicle = useStore((s) => s.setVehicle);
   const { t } = useT();
@@ -172,7 +172,15 @@ export default function VehicleFinder({ variant: variantProp = "card" }: { varia
     "w-full rounded-lg border border-surface-border bg-surface px-3 py-2.5 text-sm text-ink outline-none focus:border-brand-red disabled:cursor-not-allowed disabled:bg-surface-muted disabled:text-ink-soft/60";
 
   return (
-    <div className={variantProp === "card" ? "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted" : "w-full"}>
+    <div
+      className={
+        variantProp === "card"
+          ? glass
+            ? "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted lg:border-white/40 lg:bg-surface/60 lg:backdrop-blur-xl"
+            : "w-full rounded-xl border border-surface-border bg-surface p-5 shadow-lifted"
+          : "w-full"
+      }
+    >
       {variantProp === "card" && (
         <div className="mb-4 flex items-center gap-2">
           <CircleGauge size={18} className="text-brand-red" />
