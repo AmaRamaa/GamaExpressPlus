@@ -58,18 +58,6 @@ export default function HomeContent({
             sizes="100vw"
             className="object-cover"
           />
-          <Image
-            src="/hero-car.jpg"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-            style={{
-              maskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-              WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 55%, transparent 100%)",
-            }}
-          />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-ink/60 from-0% via-ink/15 via-50% to-transparent to-90%" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/40 to-transparent" />
 

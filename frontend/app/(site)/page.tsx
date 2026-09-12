@@ -36,22 +36,9 @@ export default async function HomePage() {
       api.get<any[]>("/vehicles/makes"),
     ]);
 
-  const mappedCategories: Category[] = rawCategories.map(mapCategory);
-  // Categories without a manually-set image (Admin > Categories) fall back
-  // to a photo of one of their own products, so the homepage grid never
-  // shows a bare icon for a category that actually has products in it.
-  const categories: Category[] = await Promise.all(
-    mappedCategories.map(async (c) => {
-      if (c.imageUrl || c.productCount === 0) return c;
-      try {
-        const sample = await getProductsByCategory(c.slug, 1);
-        const imageUrl = sample[0]?.imageUrl;
-        return imageUrl ? { ...c, imageUrl } : c;
-      } catch {
-        return c;
-      }
-    })
-  );
+  // Categories show their manually-set image (Admin > Categories) when
+  // present, otherwise fall back to the generic icon in HomeContent.
+  const categories: Category[] = rawCategories.map(mapCategory);
   // "oemtest" is leftover seed/test data, not a real brand — never show it.
   const brands: Brand[] = rawBrands.filter((b: any) => b.slug !== "oemtest").map(mapBrand);
   const brandMarquee = brands.length > 0 ? [...brands, ...brands] : [];
