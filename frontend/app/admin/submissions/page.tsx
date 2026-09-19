@@ -15,6 +15,7 @@ interface Submission {
   title: string;
   description: string | null;
   oemNumbers: string[];
+  askingPriceEur: number | null;
   category: { name: string } | null;
   brand: { name: string } | null;
   locationCompany: string | null;
@@ -119,11 +120,12 @@ export default function AdminSubmissionsPage() {
                 {new Date(s.createdAt).toLocaleDateString()}
               </p>
               {s.description && <p className="mt-1.5 text-sm text-ink-soft">{s.description}</p>}
-              {(s.category || s.brand || s.oemNumbers.length > 0) && (
+              {(s.category || s.brand || s.oemNumbers.length > 0 || s.askingPriceEur != null) && (
                 <p className="mt-1 text-xs text-ink-soft">
                   {s.category ? `Category: ${s.category.name}` : "Category: —"}
                   {s.brand ? ` · Brand: ${s.brand.name}` : ""}
                   {s.oemNumbers.length > 0 ? ` · OEM: ${s.oemNumbers.join(", ")}` : ""}
+                  {s.askingPriceEur != null ? ` · Asking: €${s.askingPriceEur.toFixed(2)}` : ""}
                 </p>
               )}
               {s.locationCompany && <p className="mt-1 text-xs text-ink-soft">Company: {s.locationCompany}</p>}

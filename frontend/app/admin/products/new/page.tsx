@@ -15,6 +15,7 @@ interface Submission {
   oemNumbers: string[];
   categoryId: string | null;
   brandId: string | null;
+  askingPriceEur: number | null;
 }
 
 function NewProductPageContent() {
@@ -23,6 +24,9 @@ function NewProductPageContent() {
   const submissionId = useSearchParams().get("fromSubmission");
 
   const [initial, setInitial] = useState<Partial<ProductFormValues> | undefined>(undefined);
+  // Shown as a hint, never auto-filled into the actual sale price -- what
+  // the seller wants to be paid isn't the same thing as what we charge.
+  const [sellerAskingPrice, setSellerAskingPrice] = useState<number | null>(null);
   const [loading, setLoading] = useState(!!submissionId);
   const [error, setError] = useState("");
 
@@ -40,6 +44,7 @@ function NewProductPageContent() {
           ...(s.brandId ? { brandId: s.brandId } : {}),
           ...(s.oemNumbers.length > 0 ? { oemNumbers: s.oemNumbers.join(", ") } : {}),
         });
+        setSellerAskingPrice(s.askingPriceEur);
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load submission"))
       .finally(() => setLoading(false));
@@ -66,6 +71,9 @@ function NewProductPageContent() {
       {submissionId && (
         <p className="-mt-2 text-sm text-ink-soft">
           Pre-filled from a customer submission — check brand/category (if the seller picked one) and fill in part number and price to publish it.
+          {sellerAskingPrice != null && (
+            <> Seller's asking price: <span className="font-semibold text-ink">€{sellerAskingPrice.toFixed(2)}</span>.</>
+          )}
         </p>
       )}
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}

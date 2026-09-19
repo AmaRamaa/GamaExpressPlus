@@ -665,6 +665,10 @@ model ProductSubmission {
   categoryId        String?
   brand             Brand?           @relation(fields: [brandId], references: [id])
   brandId           String?
+  // What the seller is asking for it, if they have a number in mind --
+  // optional, same idea as Product.priceEur but not a firm listing price
+  // until an admin reviews and promotes it.
+  askingPriceEur    Float?
   // Which company/location currently holds the part, if the seller says --
   // optional; left blank it just means "use the normal default" (Gama
   // Express SH.P.K, same as Product.locationCompany) once promoted.

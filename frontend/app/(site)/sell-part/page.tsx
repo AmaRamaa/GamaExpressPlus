@@ -18,6 +18,7 @@ interface Part {
   categoryId: string;
   brandId: string;
   oemNumbers: string;
+  askingPrice: string;
   photos: File[];
 }
 
@@ -38,6 +39,7 @@ function emptyPart(): Part {
     categoryId: "",
     brandId: "",
     oemNumbers: "",
+    askingPrice: "",
     photos: [],
   };
 }
@@ -117,6 +119,7 @@ export default function SellPartPage() {
       fd.append("categoryId", part.categoryId);
       fd.append("brandId", part.brandId);
       fd.append("oemNumbers", part.oemNumbers);
+      fd.append("askingPriceEur", part.askingPrice);
       fd.append("locationCompany", company);
       part.photos.forEach((file) => fd.append("images", file));
 
@@ -274,14 +277,28 @@ export default function SellPartPage() {
                           </select>
                         </div>
                       </div>
-                      <div>
-                        <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.oemNumbersLabel}</label>
-                        <input
-                          value={part.oemNumbers}
-                          onChange={(e) => updatePart(part.id, { oemNumbers: e.target.value })}
-                          placeholder={t.sellPart.oemNumbersPlaceholder}
-                          className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm"
-                        />
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.oemNumbersLabel}</label>
+                          <input
+                            value={part.oemNumbers}
+                            onChange={(e) => updatePart(part.id, { oemNumbers: e.target.value })}
+                            placeholder={t.sellPart.oemNumbersPlaceholder}
+                            className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm"
+                          />
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.askingPriceLabel}</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={part.askingPrice}
+                            onChange={(e) => updatePart(part.id, { askingPrice: e.target.value })}
+                            placeholder={t.sellPart.askingPricePlaceholder}
+                            className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm"
+                          />
+                        </div>
                       </div>
                       <div>
                         <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.photosLabel}</label>

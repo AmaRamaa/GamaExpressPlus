@@ -38,6 +38,9 @@ const submitSchema = z.object({
   // Multipart field, comma-separated like the admin product form's OEM
   // numbers input -- split into an array before it's stored.
   oemNumbers: z.string().optional(),
+  // Multipart field arrives as a string; coerced to a number below. Empty
+  // string means "no asking price", not zero.
+  askingPriceEur: z.string().optional(),
   locationCompany: z.string().optional(),
 });
 
@@ -149,6 +152,10 @@ router.post("/", submitLimiter, upload.array("images", 4), async (req, res) => {
       oemNumbers: parsed.data.oemNumbers
         ? parsed.data.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean)
         : [],
+      askingPriceEur:
+        parsed.data.askingPriceEur?.trim() && !isNaN(Number(parsed.data.askingPriceEur))
+          ? Number(parsed.data.askingPriceEur)
+          : null,
       images: imageUrls,
     },
   });
