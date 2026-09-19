@@ -41,9 +41,9 @@ export function CallForQuote({ size = "sm" }: { size?: "sm" | "xs" }) {
 }
 
 const stockClassNames = {
-  IN_STOCK: "bg-success-light text-success",
+  IN_STOCK: "bg-green-50 text-green-600",
   LOW_STOCK: "bg-amber-50 text-amber-600",
-  OUT_OF_STOCK: "bg-surface-muted text-ink-soft",
+  OUT_OF_STOCK: "bg-red-50 text-red-600",
   BACKORDER: "bg-blue-50 text-blue-600",
 };
 

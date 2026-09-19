@@ -192,7 +192,12 @@ router.get("/:id", ...adminOnly, async (req, res) => {
 // Lets an admin overrule the AI's verdict either direction before promoting
 // (or to reject something the AI let through) -- promotion itself always
 // goes through /:id/promote instead, so status can't be hand-set to PROMOTED.
-const overrideSchema = z.object({ status: z.enum(["APPROVED", "REJECTED"]) });
+// isRead is set separately (opening the detail view) but shares this same
+// route since both are just "update a field on this submission".
+const overrideSchema = z
+  .object({ status: z.enum(["APPROVED", "REJECTED"]), isRead: z.boolean() })
+  .partial()
+  .refine((v) => v.status !== undefined || v.isRead !== undefined, "Nothing to update");
 router.patch("/:id", ...adminOnly, async (req, res) => {
   const parsed = overrideSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });

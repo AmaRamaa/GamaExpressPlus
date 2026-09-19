@@ -675,6 +675,10 @@ model ProductSubmission {
   locationCompany   String?
   images            String[]
   status            SubmissionStatus @default(PENDING)
+  // Whether an admin has opened this submission's detail view yet -- lets
+  // the review queue surface "N unread from this seller" instead of an
+  // admin having to remember which rows they've already looked at.
+  isRead            Boolean          @default(false)
   aiIsCarPart       Boolean?
   aiReasoning       String?          @db.Text
   promotedProduct   Product?
