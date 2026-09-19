@@ -32,7 +32,7 @@ const submitSchema = z.object({
   submitterEmail: z.string().email().optional().or(z.literal("")),
   submitterPhone: z.string().optional(),
   title: z.string().min(1),
-  description: z.string().optional(),
+  description: z.string().min(1),
   locationCompany: z.string().optional(),
 });
 

@@ -84,18 +84,16 @@ export default function HomeContent({
             </div>
           </div>
 
-          {/* The photo itself already fades to white toward the bottom, so
-              just hold solid white through the exact zone the floating
-              category card's negative margin pulls it over (height below
-              must match lg:-mt-[198px] on the section after this one) -- no
-              extra dark-to-white overlay needed, that would just
-              reintroduce a dark band on top of the photo's own fade. */}
-          <div className="hidden h-[166px] bg-surface lg:block lg:h-[198px]" />
+          {/* Small solid-white buffer right at the hero's bottom edge; the
+              category card's negative margin pulls it up well past this,
+              into the photo itself -- the card's glass effect is what
+              keeps that part legible, not a white backdrop. */}
+          <div className="hidden h-[166px] bg-surface lg:block lg:h-[80px]" />
         </section>
 
         {/* Categories -- pulled up to float over the hero's lower edge,
             instead of sitting in its own section with a big gap above it. */}
-        <section className="relative -mt-[166px] pb-10 lg:-mt-[198px]">
+        <section className="relative -mt-[166px] pb-10 lg:-mt-[140px]">
           <div className="container-page">
             <div className="rounded-2xl border border-white/50 bg-surface/90 p-6 shadow-lifted backdrop-blur-sm sm:p-8">
               <div className="mb-5 flex items-end justify-between">

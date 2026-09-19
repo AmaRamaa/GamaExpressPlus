@@ -75,6 +75,7 @@ export default function SellPartPage() {
     const nextErrors: Record<string, string> = {};
     for (const part of parts) {
       if (!part.title.trim()) nextErrors[part.id] = t.sellPart.errorPartTitleRequired;
+      else if (!part.description.trim()) nextErrors[part.id] = t.sellPart.errorPartNoDescription;
       else if (part.photos.length === 0) nextErrors[part.id] = t.sellPart.errorPartNoPhoto;
     }
     setPartErrors(nextErrors);
