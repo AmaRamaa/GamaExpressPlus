@@ -64,12 +64,12 @@ export default function HomeContent({
                 <Image src="/emblem-white.png" alt="" width={900} height={945} className="hidden h-3.5 w-auto lg:block" />
                 {t.home.badge}
               </span>
-              <h1 className="font-display text-4xl font-bold leading-[1.05] text-ink sm:text-5xl lg:text-6xl lg:text-white">
+              <h1 className="font-display text-4xl font-bold leading-[1.05] text-ink sm:text-5xl lg:text-6xl lg:text-white lg:[text-shadow:0_2px_16px_rgba(0,0,0,0.55)]">
                 {t.home.heroTitle1}
                 <br />
                 {t.home.heroTitle2} <span className="text-brand-red">{t.home.heroTitleHighlight}</span>
               </h1>
-              <p className="mt-5 max-w-lg text-base text-ink-soft lg:text-white/70">{t.home.heroDesc}</p>
+              <p className="mt-5 max-w-lg text-base text-ink-soft lg:text-white/90 lg:[text-shadow:0_1px_10px_rgba(0,0,0,0.6)]">{t.home.heroDesc}</p>
               <div className="mt-6 flex flex-wrap gap-3">
                 <Link href="/products" className="rounded-lg bg-brand-red px-5 py-3 text-sm font-semibold text-white shadow-lifted hover:bg-brand-red-dark">
                   {t.home.browseAll}
@@ -87,15 +87,15 @@ export default function HomeContent({
           {/* The photo itself already fades to white toward the bottom, so
               just hold solid white through the exact zone the floating
               category card's negative margin pulls it over (height below
-              must match lg:-mt-32 on the section after this one) -- no
+              must match lg:-mt-[198px] on the section after this one) -- no
               extra dark-to-white overlay needed, that would just
               reintroduce a dark band on top of the photo's own fade. */}
-          <div className="hidden h-24 bg-surface lg:block lg:h-32" />
+          <div className="hidden h-[166px] bg-surface lg:block lg:h-[198px]" />
         </section>
 
         {/* Categories -- pulled up to float over the hero's lower edge,
             instead of sitting in its own section with a big gap above it. */}
-        <section className="relative -mt-24 pb-10 lg:-mt-32">
+        <section className="relative -mt-[166px] pb-10 lg:-mt-[198px]">
           <div className="container-page">
             <div className="rounded-2xl border border-white/50 bg-surface/90 p-6 shadow-lifted backdrop-blur-sm sm:p-8">
               <div className="mb-5 flex items-end justify-between">
