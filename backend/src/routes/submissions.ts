@@ -29,7 +29,7 @@ const submitLimiter = rateLimit({
 
 const submitSchema = z.object({
   submitterName: z.string().min(1),
-  submitterEmail: z.string().email(),
+  submitterEmail: z.string().email().optional().or(z.literal("")),
   submitterPhone: z.string().optional(),
   title: z.string().min(1),
   description: z.string().optional(),
@@ -138,6 +138,7 @@ router.post("/", submitLimiter, upload.array("images", 4), async (req, res) => {
       ...parsed.data,
       // Multipart fields arrive as "" rather than absent when left blank --
       // store that as null so it reads as "no override" downstream.
+      submitterEmail: parsed.data.submitterEmail?.trim() || null,
       locationCompany: parsed.data.locationCompany?.trim() || null,
       images: imageUrls,
     },

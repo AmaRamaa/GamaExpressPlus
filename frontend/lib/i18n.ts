@@ -264,7 +264,7 @@ const dict = {
       pageDesc:
         "Ke një pjesë ekstra ose të përdorur automjeti? Na trego çfarë ke — ekipi ynë e shqyrton dhe të kontakton nëse na intereson.",
       fullNameLabel: "Emri i plotë",
-      emailLabel: "Email",
+      emailLabel: "Email (opsionale)",
       phoneLabel: "Telefoni (opsionale)",
       titleLabel: "Çfarë është pjesa?",
       titlePlaceholder: "p.sh. Parakolp i përparmë, VW Golf Mk7",
@@ -743,7 +743,7 @@ const dict = {
       pageDesc:
         "Got a spare or used car part? Tell us what you have — our team reviews it and reaches out if we're interested.",
       fullNameLabel: "Full name",
-      emailLabel: "Email",
+      emailLabel: "Email (optional)",
       phoneLabel: "Phone (optional)",
       titleLabel: "What is the part?",
       titlePlaceholder: "e.g. Front bumper, VW Golf Mk7",

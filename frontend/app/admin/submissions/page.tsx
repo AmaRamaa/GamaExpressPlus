@@ -10,7 +10,7 @@ interface Submission {
   id: string;
   createdAt: string;
   submitterName: string;
-  submitterEmail: string;
+  submitterEmail: string | null;
   submitterPhone: string | null;
   title: string;
   description: string | null;
@@ -112,7 +112,7 @@ export default function AdminSubmissionsPage() {
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_STYLE[s.status]}`}>{s.status}</span>
               </div>
               <p className="mt-0.5 text-xs text-ink-soft">
-                {s.submitterName} · {s.submitterEmail}{s.submitterPhone ? ` · ${s.submitterPhone}` : ""} ·{" "}
+                {s.submitterName}{s.submitterEmail ? ` · ${s.submitterEmail}` : ""}{s.submitterPhone ? ` · ${s.submitterPhone}` : ""} ·{" "}
                 {new Date(s.createdAt).toLocaleDateString()}
               </p>
               {s.description && <p className="mt-1.5 text-sm text-ink-soft">{s.description}</p>}

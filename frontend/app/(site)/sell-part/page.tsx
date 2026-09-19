@@ -165,7 +165,7 @@ export default function SellPartPage() {
                 </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.emailLabel}</label>
-                  <input required type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
+                  <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm" />
                 </div>
               </div>
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
