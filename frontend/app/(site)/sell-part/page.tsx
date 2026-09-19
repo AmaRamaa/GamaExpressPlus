@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { PackagePlus, X, Plus, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { api, ApiError } from "@/lib/api";
+import { mapCategory, mapBrand } from "@/lib/adapters";
+import type { Category, Brand } from "@/lib/types";
 
 interface SubmissionResponse {
   status: "PENDING" | "REJECTED" | "APPROVED" | "PROMOTED";
@@ -13,6 +15,9 @@ interface Part {
   id: string;
   title: string;
   description: string;
+  categoryId: string;
+  brandId: string;
+  oemNumbers: string;
   photos: File[];
 }
 
@@ -26,7 +31,15 @@ interface PartResult {
 const MAX_PHOTOS = 4;
 
 function emptyPart(): Part {
-  return { id: Math.random().toString(36).slice(2), title: "", description: "", photos: [] };
+  return {
+    id: Math.random().toString(36).slice(2),
+    title: "",
+    description: "",
+    categoryId: "",
+    brandId: "",
+    oemNumbers: "",
+    photos: [],
+  };
 }
 
 export default function SellPartPage() {
@@ -41,6 +54,13 @@ export default function SellPartPage() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState("");
   const [results, setResults] = useState<PartResult[] | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
+
+  useEffect(() => {
+    api.get<any[]>("/catalog/categories").then((raw) => setCategories(raw.map(mapCategory))).catch(() => {});
+    api.get<any[]>("/catalog/brands").then((raw) => setBrands(raw.map(mapBrand))).catch(() => {});
+  }, []);
 
   function updatePart(id: string, patch: Partial<Part>) {
     setParts((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
@@ -76,6 +96,7 @@ export default function SellPartPage() {
     for (const part of parts) {
       if (!part.title.trim()) nextErrors[part.id] = t.sellPart.errorPartTitleRequired;
       else if (!part.description.trim()) nextErrors[part.id] = t.sellPart.errorPartNoDescription;
+      else if (!part.categoryId) nextErrors[part.id] = t.sellPart.errorPartNoCategory;
       else if (part.photos.length === 0) nextErrors[part.id] = t.sellPart.errorPartNoPhoto;
     }
     setPartErrors(nextErrors);
@@ -93,6 +114,9 @@ export default function SellPartPage() {
       fd.append("submitterPhone", phone);
       fd.append("title", part.title);
       fd.append("description", part.description);
+      fd.append("categoryId", part.categoryId);
+      fd.append("brandId", part.brandId);
+      fd.append("oemNumbers", part.oemNumbers);
       fd.append("locationCompany", company);
       part.photos.forEach((file) => fd.append("images", file));
 
@@ -219,6 +243,43 @@ export default function SellPartPage() {
                           value={part.description}
                           onChange={(e) => updatePart(part.id, { description: e.target.value })}
                           rows={3}
+                          className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm"
+                        />
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.categoryLabel}</label>
+                          <select
+                            value={part.categoryId}
+                            onChange={(e) => updatePart(part.id, { categoryId: e.target.value })}
+                            className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2.5 text-sm"
+                          >
+                            <option value="">{t.sellPart.categoryPlaceholder}</option>
+                            {categories.map((c) => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.brandLabel}</label>
+                          <select
+                            value={part.brandId}
+                            onChange={(e) => updatePart(part.id, { brandId: e.target.value })}
+                            className="w-full rounded-lg border border-surface-border bg-surface px-3 py-2.5 text-sm"
+                          >
+                            <option value="">{t.sellPart.brandPlaceholder}</option>
+                            {brands.map((b) => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-ink-soft">{t.sellPart.oemNumbersLabel}</label>
+                        <input
+                          value={part.oemNumbers}
+                          onChange={(e) => updatePart(part.id, { oemNumbers: e.target.value })}
+                          placeholder={t.sellPart.oemNumbersPlaceholder}
                           className="w-full rounded-lg border border-surface-border px-3 py-2.5 text-sm"
                         />
                       </div>

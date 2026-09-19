@@ -12,6 +12,9 @@ interface Submission {
   description: string | null;
   images: string[];
   locationCompany: string | null;
+  oemNumbers: string[];
+  categoryId: string | null;
+  brandId: string | null;
 }
 
 function NewProductPageContent() {
@@ -33,6 +36,9 @@ function NewProductPageContent() {
           shortDescription: s.description || "",
           images: s.images.map((url) => ({ url, altText: "" })),
           ...(s.locationCompany ? { locationCompany: s.locationCompany } : {}),
+          ...(s.categoryId ? { categoryId: s.categoryId } : {}),
+          ...(s.brandId ? { brandId: s.brandId } : {}),
+          ...(s.oemNumbers.length > 0 ? { oemNumbers: s.oemNumbers.join(", ") } : {}),
         });
       })
       .catch((e) => setError(e instanceof ApiError ? e.message : "Failed to load submission"))
@@ -59,7 +65,7 @@ function NewProductPageContent() {
       </h1>
       {submissionId && (
         <p className="-mt-2 text-sm text-ink-soft">
-          Pre-filled from a customer submission — fill in brand, category, part number and price to publish it.
+          Pre-filled from a customer submission — check brand/category (if the seller picked one) and fill in part number and price to publish it.
         </p>
       )}
       {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-600">{error}</p>}

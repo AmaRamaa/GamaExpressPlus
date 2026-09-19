@@ -33,6 +33,11 @@ const submitSchema = z.object({
   submitterPhone: z.string().optional(),
   title: z.string().min(1),
   description: z.string().min(1),
+  categoryId: z.string().min(1),
+  brandId: z.string().optional(),
+  // Multipart field, comma-separated like the admin product form's OEM
+  // numbers input -- split into an array before it's stored.
+  oemNumbers: z.string().optional(),
   locationCompany: z.string().optional(),
 });
 
@@ -139,7 +144,11 @@ router.post("/", submitLimiter, upload.array("images", 4), async (req, res) => {
       // Multipart fields arrive as "" rather than absent when left blank --
       // store that as null so it reads as "no override" downstream.
       submitterEmail: parsed.data.submitterEmail?.trim() || null,
+      brandId: parsed.data.brandId?.trim() || null,
       locationCompany: parsed.data.locationCompany?.trim() || null,
+      oemNumbers: parsed.data.oemNumbers
+        ? parsed.data.oemNumbers.split(",").map((s) => s.trim()).filter(Boolean)
+        : [],
       images: imageUrls,
     },
   });
@@ -161,6 +170,7 @@ router.get("/", ...adminOnly, async (req, res) => {
   const { status } = req.query as Record<string, string>;
   const submissions = await prisma.productSubmission.findMany({
     where: status ? { status: status as any } : undefined,
+    include: { category: { select: { name: true } }, brand: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
   });
   res.json(submissions);

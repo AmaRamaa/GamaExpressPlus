@@ -263,18 +263,20 @@ model Category {
   parentId    String?
   children    Category[] @relation("CategoryTree")
   products    Product[]
+  submissions ProductSubmission[]
   sortOrder   Int      @default(0)
 
   @@index([parentId])
 }
 
 model Brand {
-  id       String    @id @default(cuid())
-  name     String    @unique // "Bosch", "Brembo", "Febi Bilstein"
-  slug     String    @unique
-  logoUrl  String?
-  isOEM    Boolean   @default(false)
-  products Product[]
+  id          String              @id @default(cuid())
+  name        String              @unique // "Bosch", "Brembo", "Febi Bilstein"
+  slug        String              @unique
+  logoUrl     String?
+  isOEM       Boolean             @default(false)
+  products    Product[]
+  submissions ProductSubmission[]
 }
 
 model Manufacturer {
@@ -655,6 +657,14 @@ model ProductSubmission {
   submitterPhone    String?
   title             String
   description       String?          @db.Text
+  // Client-supplied identification, same fields an admin would fill in on
+  // the product form -- lets the seller do that work upfront instead of
+  // the admin having to guess brand/category/OEM numbers from a photo.
+  oemNumbers        String[]         @default([])
+  category          Category?        @relation(fields: [categoryId], references: [id])
+  categoryId        String?
+  brand             Brand?           @relation(fields: [brandId], references: [id])
+  brandId           String?
   // Which company/location currently holds the part, if the seller says --
   // optional; left blank it just means "use the normal default" (Gama
   // Express SH.P.K, same as Product.locationCompany) once promoted.
@@ -664,6 +674,9 @@ model ProductSubmission {
   aiIsCarPart       Boolean?
   aiReasoning       String?          @db.Text
   promotedProduct   Product?
+
+  @@index([categoryId])
+  @@index([brandId])
 }
 
 // One row per print job reported by the Windows print-monitor agent running
