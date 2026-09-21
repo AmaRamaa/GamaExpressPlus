@@ -7,9 +7,11 @@ import { Plus, Search, Trash2, Pencil, Wand2, Sparkles, Languages, StarOff, EyeO
 import { api, ApiError } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
 import Pagination from "@/components/Pagination";
+import { ProductContextMenu, QuickAddVehicleModal } from "@/components/admin/ProductQuickActions";
 
 interface ProductRow {
   id: string;
+  slug: string;
   sku: string;
   title: string;
   priceEur: number;
@@ -76,6 +78,8 @@ function AdminProductsPageContent() {
   const [editingCell, setEditingCell] = useState<{ id: string; field: "price" | "stock" } | null>(null);
   const [editValue, setEditValue] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [menu, setMenu] = useState<{ x: number; y: number; product: ProductRow } | null>(null);
+  const [vehicleFor, setVehicleFor] = useState<ProductRow | null>(null);
 
   // Keep the search box in sync when the URL changes from elsewhere (e.g. browser back/forward).
   useEffect(() => setQInput(q), [q]);
@@ -261,7 +265,10 @@ function AdminProductsPageContent() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Products</h1>
-          <p className="text-sm text-ink-soft">{data ? `${data.total} products` : "Loading…"}</p>
+          <p className="text-sm text-ink-soft">
+            {data ? `${data.total} products` : "Loading…"}
+            <span className="ml-2 text-xs text-slate-400">· Right-click a product for quick actions</span>
+          </p>
         </div>
         <div className="flex gap-2">
           {isAdmin && (
@@ -393,7 +400,11 @@ function AdminProductsPageContent() {
             {data?.items.map((p) => (
               <tr
                 key={p.id}
-                className={`border-b border-slate-50 hover:bg-slate-50 ${selected.has(p.id) ? "bg-brand-red-light/30" : p.id === lastViewedId ? "bg-brand-red-light/60" : ""}`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setMenu({ x: e.clientX, y: e.clientY, product: p });
+                }}
+                className={`border-b border-slate-50 hover:bg-slate-50 ${menu?.product.id === p.id ? "bg-slate-100" : selected.has(p.id) ? "bg-brand-red-light/30" : p.id === lastViewedId ? "bg-brand-red-light/60" : ""}`}
               >
                 <td className="px-3 py-1.5">
                   <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelected(p.id)} className="size-3.5 rounded border-slate-300" />
@@ -496,6 +507,18 @@ function AdminProductsPageContent() {
           onPageChange={(next) => updateParams({ page: String(next) })}
         />
       )}
+
+      {menu && (
+        <ProductContextMenu
+          x={menu.x}
+          y={menu.y}
+          product={menu.product}
+          canEdit={isAdmin}
+          onAddVehicle={() => setVehicleFor(menu.product)}
+          onClose={() => setMenu(null)}
+        />
+      )}
+      {vehicleFor && <QuickAddVehicleModal product={vehicleFor} onClose={() => setVehicleFor(null)} />}
     </div>
   );
 }
