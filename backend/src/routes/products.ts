@@ -3,9 +3,23 @@ import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
 import { prisma } from "../lib/prisma";
 import { buildProductSearchAnd } from "../lib/search";
+import { autoAssignFitmentFromTitle } from "../lib/autoFitment";
 import { requireAuth, requireRole, AuthedRequest } from "../middleware/auth";
 
 const router = Router();
+
+// Fire-and-forget, like the translation hook: never blocks or fails a save.
+function runAutoFitment(productId: string) {
+  autoAssignFitmentFromTitle(productId)
+    .then((r) => {
+      if (r.status === "assigned") {
+        console.log(
+          `[auto-fitment] ${productId}: ${r.vehicle} (fitment +${r.fitmentLinked}, manufacturer ${r.manufacturerSet ? "set" : "kept"})`
+        );
+      }
+    })
+    .catch((err) => console.error("Auto-fitment failed:", err.message));
+}
 
 // Title markers for products the AI tooling owns until a human takes over.
 // "[Draft] " = staff-PIN fast entry, nothing filled in yet. "[AI] " = the
@@ -311,6 +325,7 @@ router.post("/", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN"), 
         autoCompleteDraftProduct(product.id).catch((err) => console.error("Draft auto-complete failed:", err.message));
       } else {
         translateProductFields(product.id).catch((err) => console.error("Product translation failed:", err.message));
+        runAutoFitment(product.id);
       }
       return res.status(201).json(product);
     } catch (err: any) {
@@ -344,10 +359,10 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
   // now handling this product -- strip a leftover "[Draft] "/"[AI] " marker
   // even if this particular save didn't touch the title, so neither the
   // draft auto-complete nor the translation/bulk tools ever touch it again.
+  const before = await prisma.product.findUnique({ where: { id: req.params.id }, select: { title: true } });
   if (data.title === undefined) {
-    const current = await prisma.product.findUnique({ where: { id: req.params.id }, select: { title: true } });
-    if (current?.title.startsWith(DRAFT_PREFIX)) data.title = current.title.slice(DRAFT_PREFIX.length);
-    else if (current?.title.startsWith(AI_PREFIX)) data.title = current.title.slice(AI_PREFIX.length);
+    if (before?.title.startsWith(DRAFT_PREFIX)) data.title = before.title.slice(DRAFT_PREFIX.length);
+    else if (before?.title.startsWith(AI_PREFIX)) data.title = before.title.slice(AI_PREFIX.length);
   }
 
   try {
@@ -355,6 +370,9 @@ router.put("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN", "STAFF_PIN")
     if (data.title !== undefined || parsed.data.shortDescription !== undefined || parsed.data.description !== undefined) {
       translateProductFields(product.id).catch((err) => console.error("Product translation failed:", err.message));
     }
+    // Renamed, or just taken over from the AI (marker stripped above) -- the
+    // title is now human-approved, so read the vehicle out of it.
+    if (product.title !== before?.title) runAutoFitment(product.id);
     res.json(product);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
