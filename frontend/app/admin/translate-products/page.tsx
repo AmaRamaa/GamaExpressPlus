@@ -11,6 +11,8 @@ interface ProductText {
   shortDescription: string | null;
   description: string | null;
   contentLanguage: "SQ" | "EN" | null;
+  shortDescriptionLanguage: "SQ" | "EN" | null;
+  descriptionLanguage: "SQ" | "EN" | null;
   titleTranslated: string | null;
   shortDescriptionTranslated: string | null;
   descriptionTranslated: string | null;
@@ -36,7 +38,17 @@ export default function TranslateProductsPage() {
 
   useEffect(load, [token]);
 
-  const pending = (products ?? []).filter((p) => !p.contentLanguage && p.title?.trim() && !p.title.startsWith("[Draft]"));
+  // "Pending" = not yet translated with the current per-field logic. Products
+  // translated before it existed have no per-field languages recorded, so
+  // they show up here for a refresh too; once redone, all three languages
+  // are set and they drop off the list -- which also makes a Stop/Continue
+  // safe to resume.
+  const pending = (products ?? []).filter(
+    (p) =>
+      p.title?.trim() &&
+      !p.title.startsWith("[Draft]") &&
+      (!p.contentLanguage || !p.shortDescriptionLanguage || !p.descriptionLanguage)
+  );
 
   async function start() {
     if (!products) return;
@@ -74,10 +86,12 @@ export default function TranslateProductsPage() {
           <Languages size={22} className="text-brand-red" /> Bulk product translation
         </h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Detects whether each product's title/description is written in Albanian or English, and generates the
-          counterpart in the other language so the storefront shows the right one for the visitor's chosen locale.
-          Uses Claude (a few cents per 100 products). Safe to stop and re-run later — already-translated products
-          are always skipped, and new/edited products are translated automatically going forward.
+          Detects whether each product's title, short description and description are written in Albanian or
+          English (each one separately — a listing can mix both), and generates the counterpart in the other
+          language so the storefront shows the right one for the visitor's chosen locale. Uses Claude (a few cents
+          per 100 products). Safe to stop and continue later — products already done with the current method are
+          skipped, and new/edited products are translated automatically going forward. Products translated with
+          the older method are listed here too, so running this refreshes them.
         </p>
       </div>
 
@@ -89,7 +103,7 @@ export default function TranslateProductsPage() {
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
           <p className="text-sm text-ink">
             <span className="font-semibold">{pending.length}</span> product{pending.length === 1 ? "" : "s"} still need
-            translating, out of {products.length} total.
+            translating or refreshing, out of {products.length} total.
           </p>
 
           {running && (

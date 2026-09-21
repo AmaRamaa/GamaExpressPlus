@@ -68,6 +68,11 @@ export interface Product {
   // entered in, plus the auto-generated counterpart in the other language --
   // null/undefined until the translation service has run on this product.
   contentLanguage?: "SQ" | "EN" | null;
+  // Language of the short description / description on their own (a listing
+  // can mix them) -- null means "same as contentLanguage" for products
+  // translated before per-field detection.
+  shortDescriptionLanguage?: "SQ" | "EN" | null;
+  descriptionLanguage?: "SQ" | "EN" | null;
   titleTranslated?: string | null;
   shortDescriptionTranslated?: string | null;
   descriptionTranslated?: string | null;

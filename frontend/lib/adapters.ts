@@ -24,6 +24,8 @@ export function mapProduct(raw: any): Product {
     shortDescription: raw.shortDescription || "",
     description: raw.description || "",
     contentLanguage: raw.contentLanguage ?? null,
+    shortDescriptionLanguage: raw.shortDescriptionLanguage ?? null,
+    descriptionLanguage: raw.descriptionLanguage ?? null,
     titleTranslated: raw.titleTranslated ?? null,
     shortDescriptionTranslated: raw.shortDescriptionTranslated ?? null,
     descriptionTranslated: raw.descriptionTranslated ?? null,
@@ -70,21 +72,41 @@ export function mapCategory(raw: any): Category {
 }
 
 // Picks the right title/shortDescription/description for the visitor's
-// current site locale: the original text if it already matches (or the
-// product hasn't been translated yet), otherwise the translated
-// counterpart -- falling back to the original if a translation is still
-// missing rather than showing blank text.
+// current site locale, field by field: a field's original text if it's
+// already in that locale (or hasn't been translated yet), otherwise its
+// translated counterpart -- falling back to the original if a translation
+// is still missing rather than showing blank text. Fields are judged
+// separately because a listing can mix languages (Albanian title, English
+// AI-written description); products translated before per-field detection
+// have null field languages and fall back to the title's language, which is
+// exactly how they behaved before.
 export function localizeProductText(
-  product: Pick<Product, "title" | "shortDescription" | "description" | "contentLanguage" | "titleTranslated" | "shortDescriptionTranslated" | "descriptionTranslated">,
+  product: Pick<
+    Product,
+    | "title"
+    | "shortDescription"
+    | "description"
+    | "contentLanguage"
+    | "shortDescriptionLanguage"
+    | "descriptionLanguage"
+    | "titleTranslated"
+    | "shortDescriptionTranslated"
+    | "descriptionTranslated"
+  >,
   locale: Locale
 ): { title: string; shortDescription: string; description: string } {
-  const isOriginalLocale = !product.contentLanguage || product.contentLanguage.toLowerCase() === locale;
-  if (isOriginalLocale) {
-    return { title: product.title, shortDescription: product.shortDescription, description: product.description };
-  }
+  const pick = (
+    original: string,
+    translated: string | null | undefined,
+    fieldLanguage: "SQ" | "EN" | null | undefined
+  ) => {
+    const language = fieldLanguage ?? product.contentLanguage;
+    if (!language || language.toLowerCase() === locale) return original;
+    return translated || original;
+  };
   return {
-    title: stripAiPrefix(product.titleTranslated || product.title),
-    shortDescription: product.shortDescriptionTranslated || product.shortDescription,
-    description: product.descriptionTranslated || product.description,
+    title: stripAiPrefix(pick(product.title, product.titleTranslated, product.contentLanguage)),
+    shortDescription: pick(product.shortDescription, product.shortDescriptionTranslated, product.shortDescriptionLanguage),
+    description: pick(product.description, product.descriptionTranslated, product.descriptionLanguage),
   };
 }

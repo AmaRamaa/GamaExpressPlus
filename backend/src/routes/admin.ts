@@ -289,6 +289,8 @@ router.get("/products/all-text", adminOnly, async (_req, res) => {
       shortDescription: true,
       description: true,
       contentLanguage: true,
+      shortDescriptionLanguage: true,
+      descriptionLanguage: true,
       titleTranslated: true,
       shortDescriptionTranslated: true,
       descriptionTranslated: true,

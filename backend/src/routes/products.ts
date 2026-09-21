@@ -367,17 +367,23 @@ router.delete("/:id", requireAuth, requireRole("ADMIN", "SUPER_ADMIN"), async (r
 });
 
 const translateSchema = z.object({
+  // Language of the title -- stored as Product.contentLanguage.
   detectedLanguage: z.enum(["SQ", "EN"]),
+  shortDescriptionLanguage: z.enum(["SQ", "EN"]),
+  descriptionLanguage: z.enum(["SQ", "EN"]),
   titleTranslated: z.string(),
   shortDescriptionTranslated: z.string(),
   descriptionTranslated: z.string(),
 });
 
-// Detects whether a product's title/shortDescription/description are
-// written in Albanian or English, then generates the counterpart in the
-// other language so the storefront can show the right one for the
-// visitor's chosen locale. Shared by the explicit POST /:id/translate route
-// and the fire-and-forget hook after create/update -- callers that want a
+// Detects, per field, whether a product's title/shortDescription/description
+// are written in Albanian or English, then generates the counterpart of each
+// in the other language so the storefront can show the right one for the
+// visitor's chosen locale. Detection is per field because listings are often
+// mixed (Albanian title typed by staff, English description written by the
+// AI photo analysis) -- one flag for the whole product got those wrong in
+// both locales. Shared by the explicit POST /:id/translate route and the
+// fire-and-forget hook after create/update -- callers that want a
 // user-facing error should catch and report; the fire-and-forget hook just
 // logs, matching how /analyze-photos degrades (never blocks core CRUD).
 async function translateProductFields(productId: string) {
@@ -400,9 +406,17 @@ async function translateProductFields(productId: string) {
     max_tokens: 1536,
     system:
       "You translate auto-parts catalog listings for a Kosovo store between Albanian (SQ) and English (EN). " +
-      "First detect which of those two languages the given text is written in, then translate all fields into the OTHER language. " +
-      "Keep SKUs, part numbers, OEM codes, and brand/manufacturer names unchanged. Keep the tone concise and factual, matching a parts-catalog listing. " +
-      "If a field is empty, return an empty string for its translation.",
+      "Judge the language of EACH field separately: it is common for the title to be Albanian while the description is English (or the reverse). " +
+      "For each field, translate it into the OTHER language than the one that field is written in. " +
+      "Titles are usually ALL-CAPS Albanian abbreviations followed by a vehicle make/model/years/chassis code, e.g. 'DERA PARA DJ - VW GOLF VII 13-16'. " +
+      "Decide a title's language from the Albanian or English words in it, never from the make, model, years or codes. " +
+      "Albanian catalog shorthand: PARA / PARE / E PARE = front; MBRAPA / MRAM / E MBRAME = rear; MJ = left (majtas); DJ = right (djathtas); " +
+      "DERA / DYERT = door(s); '5 DYRSH' = 5-door; MASKA DEKORUESE = decorative grille; MBROJTESI = bumper; KOMPLET = complete; " +
+      "ME = with; DHE = and; SENZOR = sensor; KAMER = camera; E DEMTUAR = damaged. " +
+      "Translate front/rear and left/right exactly as given -- never swap or invent them. In English write LEFT / RIGHT (not MJ/DJ or LH/RH); " +
+      "in Albanian keep the catalog abbreviations MJ / DJ. " +
+      "Keep SKUs, part numbers, OEM codes, chassis codes, years, and brand/manufacturer names unchanged. Keep the tone concise and factual, matching a parts-catalog listing. " +
+      "If a field is empty, return an empty string for its translation and set its language to the title's language.",
     messages: [
       {
         role: "user",
@@ -419,11 +433,20 @@ async function translateProductFields(productId: string) {
           type: "object",
           properties: {
             detectedLanguage: { type: "string", enum: ["SQ", "EN"] },
+            shortDescriptionLanguage: { type: "string", enum: ["SQ", "EN"] },
+            descriptionLanguage: { type: "string", enum: ["SQ", "EN"] },
             titleTranslated: { type: "string" },
             shortDescriptionTranslated: { type: "string" },
             descriptionTranslated: { type: "string" },
           },
-          required: ["detectedLanguage", "titleTranslated", "shortDescriptionTranslated", "descriptionTranslated"],
+          required: [
+            "detectedLanguage",
+            "shortDescriptionLanguage",
+            "descriptionLanguage",
+            "titleTranslated",
+            "shortDescriptionTranslated",
+            "descriptionTranslated",
+          ],
           additionalProperties: false,
         },
       },
@@ -440,6 +463,8 @@ async function translateProductFields(productId: string) {
     where: { id: productId },
     data: {
       contentLanguage: result.data.detectedLanguage,
+      shortDescriptionLanguage: result.data.shortDescriptionLanguage,
+      descriptionLanguage: result.data.descriptionLanguage,
       titleTranslated: result.data.titleTranslated || null,
       shortDescriptionTranslated: result.data.shortDescriptionTranslated || null,
       descriptionTranslated: result.data.descriptionTranslated || null,

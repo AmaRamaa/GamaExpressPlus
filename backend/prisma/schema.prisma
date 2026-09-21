@@ -303,7 +303,16 @@ model Product {
   // here so the storefront can pick the right side for the visitor's
   // chosen locale. Populated by the AI translation service, never
   // admin-writable directly.
+  //
+  // contentLanguage is the language of the *title*. The short description
+  // and description are recorded separately because a listing is often
+  // mixed -- an Albanian title with an English description the AI wrote
+  // from the photos -- and one flag per product can't describe that. Null on
+  // either means "translated before per-field detection existed": fall back
+  // to contentLanguage, and the bulk translation tool will redo it.
   contentLanguage            Language?
+  shortDescriptionLanguage   Language?
+  descriptionLanguage        Language?
   titleTranslated            String?
   shortDescriptionTranslated String?
   descriptionTranslated      String?  @db.Text
