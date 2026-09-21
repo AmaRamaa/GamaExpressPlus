@@ -57,7 +57,7 @@ export default function HomeContent({
             sizes="100vw"
             className="hidden object-cover lg:block"
           />
-          <div className="container-page relative grid gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:py-28">
+          <div className="container-page relative grid gap-10 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:pb-28 lg:pt-4">
             <div className="flex flex-col justify-center">
               <span className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-brand-red/40 bg-brand-red/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-brand-red lg:text-brand-red-light">
                 <Image src="/emblem-red.png" alt="" width={900} height={945} className="h-3.5 w-auto lg:hidden" />
@@ -79,7 +79,9 @@ export default function HomeContent({
                 </Link>
               </div>
             </div>
-            <div className="flex items-center">
+            {/* z-20 so the make/model dropdown opens on top of the category
+                card below instead of being painted underneath it. */}
+            <div className="relative z-20 flex items-center lg:items-start lg:pt-6">
               <VehicleFinder glass />
             </div>
           </div>
