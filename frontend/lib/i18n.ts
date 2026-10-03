@@ -102,6 +102,7 @@ const dict = {
       tagline:
         "Pjesë origjinale dhe alternative eksterne për automjete, të dërguara në të gjithë Kosovën — shpejt, me përputhje të verifikuar, marka të besueshme.",
       rights: "Të gjitha të drejtat e rezervuara.",
+      poweredBy: "Mundësuar nga",
       shopLinks: ["Parakolpa & Panele", "Ndriçim", "Pasqyra & Xhama", "Zbukurime & Grila"],
       careLinks: ["Gjurmo porosinë", "Kthime & garanci", "Kërko një pjesë", "Shit pjesën tënde", "Info dërgese", "Pyetje të shpeshta"],
       businessLinks: ["Llogari me shumicë", "Kërko ofertë me shumicë", "Faturimi", "Degët"],
@@ -593,6 +594,7 @@ const dict = {
       tagline:
         "Genuine and aftermarket exterior auto parts, delivered across Kosovo — fast, verified fitment, trusted brands.",
       rights: "All rights reserved.",
+      poweredBy: "Powered by",
       shopLinks: ["Bumpers & Body Panels", "Lighting", "Mirrors & Glass", "Exterior Trim & Grilles"],
       careLinks: ["Track your order", "Returns & warranty", "Request a part", "Sell your part", "Shipping info", "FAQ"],
       businessLinks: ["Wholesale accounts", "Bulk quote request", "Invoicing", "Branch locations"],

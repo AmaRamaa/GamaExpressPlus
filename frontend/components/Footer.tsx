@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Facebook, Instagram, Mail } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import Wordmark from "@/components/Wordmark";
 
 const HREFS = [
   [
@@ -62,7 +63,13 @@ export default function Footer() {
 
       <div className="border-t border-white/10">
         <div className="container-page flex flex-col items-center justify-between gap-2 py-4 text-xs text-white/50 sm:flex-row">
-          <span>© {new Date().getFullYear()} Gama Express Sh.p.k. {t.footer.rights}</span>
+          <div className="flex flex-col items-center gap-1.5 sm:items-start">
+            <span>© {new Date().getFullYear()} Gama Express Sh.p.k. {t.footer.rights}</span>
+            <span className="flex items-center gap-3">
+              {t.footer.poweredBy}
+              <Wordmark className="text-sm" />
+            </span>
+          </div>
           <div className="flex items-center gap-4">
             <Link href="/privacy" className="hover:text-white">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-white">Terms of Service</Link>
