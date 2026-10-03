@@ -67,7 +67,15 @@ export default function Footer() {
             <span>© {new Date().getFullYear()} Gama Express Sh.p.k. {t.footer.rights}</span>
             <span className="flex items-center gap-3">
               {t.footer.poweredBy}
-              <Wordmark className="text-sm" />
+              {/* New tab so a shopper mid-browse isn't taken off the store. */}
+              <a
+                href="https://amarrama.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-sm transition-colors hover:[&>span]:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white/60"
+              >
+                <Wordmark className="text-sm" />
+              </a>
             </span>
           </div>
           <div className="flex items-center gap-4">
